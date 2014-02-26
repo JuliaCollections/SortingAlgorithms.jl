@@ -1,6 +1,6 @@
 # SortingAlgorithms
 
-[![Build Status](https://travis-ci.org/StefanKarpinski/SortingAlgorithms.jl.png)](https://travis-ci.org/StefanKarpinski/SortingAlgorithms.jl)
+[![Build Status](https://travis-ci.org/JuliaLang/SortingAlgorithms.jl.png)](https://travis-ci.org/JuliaLang/SortingAlgorithms.jl)
 
 The SortingAlgorithms package provides three sorting algorithms that can be used with Julia's [standard sorting API](http://docs.julialang.org/en/latest/stdlib/sort/):
 
