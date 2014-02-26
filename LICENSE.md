@@ -1,6 +1,6 @@
 The SortingAlgorithms.jl package is licensed under the MIT Expat License:
 
-> Copyright (c) 2013: Jeff Bezanson.
+> Copyright (c) 2013-2014: Kevin Squire, Stefan Karpinski, Jeff Bezanson.
 >
 > Permission is hereby granted, free of charge, to any person obtaining
 > a copy of this software and associated documentation files (the
