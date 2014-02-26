@@ -2,15 +2,15 @@
 
 [![Build Status](https://travis-ci.org/StefanKarpinski/SortingAlgorithms.jl.png)](https://travis-ci.org/StefanKarpinski/SortingAlgorithms.jl)
 
-The SortingAlgorithms package provides three sorting algorithms that can be used with Julia's [standard sorting APIs](http://docs.julialang.org/en/latest/stdlib/sort/):
+The SortingAlgorithms package provides three sorting algorithms that can be used with Julia's [standard sorting API](http://docs.julialang.org/en/latest/stdlib/sort/):
 
 - [HeapSort] – an unstable, general purpose, in-place, O(n log n) comparison sort that works by heapify an array and repeatedly taking the maximal element from the heap.
 - [TimSort] – a stable, general purpose, hybrid, O(n log n) comparison sort that adapts to different common patterns of partially ordered input data.
 - [RadixSort] – a stable, special case, in-place, O(n) non-comparison sort that works by sorting data with fixed size, one digit at a time.
 
-[HeapSort] 	http://en.wikipedia.org/wiki/Heapsort
-[TimSort]	http://en.wikipedia.org/wiki/Timsort
-[RadixSort]	http://en.wikipedia.org/wiki/Radix_sort
+[HeapSort]:  http://en.wikipedia.org/wiki/Heapsort
+[TimSort]:   http://en.wikipedia.org/wiki/Timsort
+[RadixSort]: http://en.wikipedia.org/wiki/Radix_sort
 
 ## Usage
 
