@@ -8,7 +8,7 @@ import
     Base.Collections.heapify!,
     Base.Collections.percolate_down!
 
-export HeapSort, TimSort, RadixSort,SelectionSort
+export HeapSort, TimSort, RadixSort, SelectionSort
 
 immutable HeapSortAlg  <: Algorithm end
 immutable TimSortAlg   <: Algorithm end
@@ -546,26 +546,25 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
     return v
 end
 
-##Selection Sort
+
+## Selection Sort
 
 function sort!(v::AbstractVector, lo::Int, hi::Int, a::SelectionSortAlg, o::Ordering)
- 
- 
- for i = lo:hi
-      minid = i
-	     #Selecting smallest element
-         for j = i+1:hi
-		    #Find index of smallest element
+    for i = lo:hi
+        minid = i
+	#Selecting smallest element
+        for j = i+1:hi
+            #Find index of smallest element
             if v[j] < v[minid]
-	           minid = j
-	        end
+	        minid = j
+	    end
         end
-	#Interchanging elements
+    #Interchanging elements
     temp = v[i]
     v[i] = v[minid]
     v[minid] = temp  
-  end
-  return v
+    end
+    return v
 end
 
 end # module
