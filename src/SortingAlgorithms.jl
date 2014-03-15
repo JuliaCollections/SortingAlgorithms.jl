@@ -8,15 +8,17 @@ import
     Base.Collections.heapify!,
     Base.Collections.percolate_down!
 
-export HeapSort, TimSort, RadixSort
+export HeapSort, TimSort, RadixSort,SelectionSort
 
 immutable HeapSortAlg  <: Algorithm end
 immutable TimSortAlg   <: Algorithm end
 immutable RadixSortAlg <: Algorithm end
+immutable SelectionSortAlg <: Algorithm end
 
 const HeapSort  = HeapSortAlg()
 const TimSort   = TimSortAlg()
 const RadixSort = RadixSortAlg()
+const SelectionSort = SelectionSortAlg()
 
 
 ## Heap sort
@@ -542,6 +544,28 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
         merge_collapse(o, v, state, true)
     end
     return v
+end
+
+##Selection Sort
+
+function sort!(v::AbstractVector, lo::Int, hi::Int, a::SelectionSortAlg, o::Ordering)
+ 
+ 
+ for i = lo:hi
+      minid = i
+	     #Selecting smallest element
+         for j = i+1:hi
+		    #Find index of smallest element
+            if v[j] < v[minid]
+	           minid = j
+	        end
+        end
+	#Interchanging elements
+    temp = v[i]
+    v[i] = v[minid]
+    v[minid] = temp  
+  end
+  return v
 end
 
 end # module
