@@ -41,6 +41,22 @@ end
 
 ## Radix sort
 
+# Map a bits-type to an unsigned int, maintaining sort order
+uint_mapping(::ForwardOrdering, x::Unsigned) = x
+for (signedty, unsignedty) in ((Int8, Uint8), (Int16, Uint16), (Int32, Uint32), (Int64, Uint64), (Int128, Uint128))
+    # In Julia 0.4 we can just use unsigned() here
+    @eval uint_mapping(::ForwardOrdering, x::$signedty) = reinterpret($unsignedty, x $ typemin(typeof(x)))
+end
+uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(Uint32, ifelse(y < 0, ~y, y $ typemin(Int32))))
+uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(Uint64, ifelse(y < 0, ~y, y $ typemin(Int64))))
+
+uint_mapping{Fwd}(rev::ReverseOrdering{Fwd}, x) = ~uint_mapping(rev.fwd, x)
+uint_mapping{T<:Real}(::ReverseOrdering{ForwardOrdering}, x::T) = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
+
+uint_mapping(o::By,   x     ) = uint_mapping(Forward, o.by(x))
+uint_mapping(o::Perm, i::Int) = uint_mapping(o.order, o.data[i])
+uint_mapping(o::Lt,   x     ) = error("uint_mapping does not work with general Lt Orderings")
+
 const RADIX_SIZE = 11
 const RADIX_MASK = 0x7FF
 
