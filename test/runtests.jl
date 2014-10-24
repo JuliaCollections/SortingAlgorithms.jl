@@ -3,7 +3,7 @@ using SortingAlgorithms
 
 a = rand(1:10000, 1000)
 
-for alg in {TimSort, HeapSort, RadixSort}
+for alg in {HeapSort, IntroSort, RadixSort, TimSort}
     b = sort(a, alg=alg)
     @test issorted(b)
     ix = sortperm(a, alg=alg)
@@ -83,7 +83,7 @@ for n in [0:10, 100, 101, 1000, 1001]
         end
 
         # unstable algorithms
-        for alg in [HeapSort]
+        for alg in [HeapSort, IntroSort]
             p = sortperm(v, alg=alg, order=ord)
             @test isperm(p)
             @test v[p] == si

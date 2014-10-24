@@ -8,15 +8,17 @@ import
     Base.Collections.heapify!,
     Base.Collections.percolate_down!
 
-export HeapSort, TimSort, RadixSort
+export HeapSort, IntroSort, RadixSort, TimSort
 
 immutable HeapSortAlg  <: Algorithm end
-immutable TimSortAlg   <: Algorithm end
+immutable IntroSortAlg <: Algorithm end
 immutable RadixSortAlg <: Algorithm end
+immutable TimSortAlg   <: Algorithm end
 
 const HeapSort  = HeapSortAlg()
-const TimSort   = TimSortAlg()
+const IntroSort = IntroSortAlg()
 const RadixSort = RadixSortAlg()
+const TimSort   = TimSortAlg()
 
 
 ## Heap sort
@@ -558,6 +560,57 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
         merge_collapse(o, v, state, true)
     end
     return v
+end
+
+
+## Intro sort
+
+function sort!(v::AbstractVector, lo::Int, hi::Int, a::IntroSortAlg, o::Ordering)
+    N = length(v)
+    if N > 1
+        introsort_loop!(v, lo, hi, 2 * ifloor(log2(hi - lo + 1)), o)
+        sort!(v, lo, hi, InsertionSort, o)
+    end
+    v
+end
+
+function introsort_loop!(v::AbstractVector, lo::Int, hi::Int, depth_limit::Int, o::Ordering)
+    while hi - lo > depth_limit
+        if depth_limit == 0
+            sort!(v, lo, hi, HeapSort, o)
+            return v
+        end
+        depth_limit -= 1
+        p = partition!(v, lo, hi, index_of_median_of_three(v, lo, hi, o), o)
+        introsort_loop!(v, p, hi, depth_limit, o)
+        hi = p
+    end
+    v
+end
+
+function partition!(v::AbstractVector, lo::Int, hi::Int, p::Int, o::Ordering)
+    val = v[p]
+    v[p], v[hi] = v[hi], v[p]
+    j = lo
+    for i in lo:hi
+        if lt(o, v[i], val)
+            v[i], v[j] = v[j], v[i]
+            j += 1
+        end
+    end
+    v[j], v[hi] = v[hi], v[j]
+    return j
+end
+
+function index_of_median_of_three(v, lo, hi, o)
+    middle = lo + div(hi - lo, 2)
+    if lt(o, v[lo], v[middle])
+        return lt(o, v[middle], v[hi]) ? middle : hi
+    elseif lt(o, v[hi], v[middle])
+        return middle
+    else
+        return lt(o, v[lo], v[hi]) ? lo : hi
+    end
 end
 
 end # module
