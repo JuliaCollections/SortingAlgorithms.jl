@@ -1,10 +1,13 @@
-# SortingAlgorithms
+# Sorting Algorithms
 
-[![Build Status](https://travis-ci.org/JuliaLang/SortingAlgorithms.jl.svg)](https://travis-ci.org/JuliaLang/SortingAlgorithms.jl)
+[![SortingAlgorithms on julia-release](http://pkg.julialang.org/badges/SortingAlgorithms_release.svg)](http://pkg.julialang.org/?pkg=SortingAlgorithms&ver=release)
+[![SortingAlgorithms on julia-nightly](http://pkg.julialang.org/badges/SortingAlgorithms_nightly.svg)](http://pkg.julialang.org/?pkg=SortingAlgorithms&ver=nightly)
+[![Build Status](https://travis-ci.org/JuliaLang/SortingAlgorithms.jl.svg?branch=master)](https://travis-ci.org/JuliaLang/SortingAlgorithms.jl)
+[![Coverage Status](https://coveralls.io/repos/JuliaLang/SortingAlgorithms.jl/badge.svg)](https://coveralls.io/r/JuliaLang/SortingAlgorithms.jl)
 
-The SortingAlgorithms package provides three sorting algorithms that can be used with Julia's [standard sorting API](http://docs.julialang.org/en/latest/stdlib/sort/):
+The `SortingAlgorithms` package provides three sorting algorithms that can be used with Julia's [standard sorting API](http://docs.julialang.org/en/latest/stdlib/sort/):
 
-- [HeapSort] – an unstable, general purpose, in-place, O(n log n) comparison sort that works by heapify an array and repeatedly taking the maximal element from the heap.
+- [HeapSort] – an unstable, general purpose, in-place, O(n log n) comparison sort that works by heapifying an array and repeatedly taking the maximal element from the heap.
 - [TimSort] – a stable, general purpose, hybrid, O(n log n) comparison sort that adapts to different common patterns of partially ordered input data.
 - [RadixSort] – a stable, special case, in-place, O(n) non-comparison sort that works by sorting data with fixed size, one digit at a time.
 
@@ -14,6 +17,7 @@ The SortingAlgorithms package provides three sorting algorithms that can be used
 
 ## Usage
 
+```jl
 	julia> using SortingAlgorithms
 
 	julia> words = map(chomp,[readlines(open("/usr/share/dict/words"))...])
@@ -120,3 +124,5 @@ The SortingAlgorithms package provides three sorting algorithms that can be used
 	  3.15075
 	  3.20058
 	  3.23942
+```
+

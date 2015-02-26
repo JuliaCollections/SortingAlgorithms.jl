@@ -4,9 +4,7 @@ using Base.Sort
 using Base.Order
 
 import Base.Sort: sort!
-import
-    Base.Collections.heapify!,
-    Base.Collections.percolate_down!
+import Base.Collections: heapify!, percolate_down!
 
 export HeapSort, TimSort, RadixSort
 
@@ -71,7 +69,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
     end
 
     # Init
-    iters = iceil(sizeof(T)*8/RADIX_SIZE)
+    iters = ceil(Integer, sizeof(T)*8/RADIX_SIZE)
     bin = zeros(Uint32, 2^RADIX_SIZE, iters)
     if lo > 1;  bin[1,:] = lo-1;  end
 
@@ -145,7 +143,7 @@ end
 MergeState() = MergeState(Run[], MIN_GALLOP)
 
 # Determine a good minimum run size for efficient merging
-# For details, see "Computing minrun" in 
+# For details, see "Computing minrun" in
 # http://svn.python.org/projects/python/trunk/Objects/listsort.txt
 function merge_compute_minrun(N::Int, bits::Int)
     r = 0
@@ -286,7 +284,7 @@ end
 #  A > B + C
 #  B > C
 #
-# If any of these are violated, a merge occurs to 
+# If any of these are violated, a merge occurs to
 # correct it
 function merge_collapse(o::Ordering, v::AbstractVector, state::MergeState, force::Bool)
     while length(state.runs) > 2
@@ -391,7 +389,7 @@ function merge_lo(o::Ordering, v::AbstractVector, a::Run, b::Run, state::MergeSt
                 v[i:i_end] = v[b_run]
                 i = i_end + 1
                 from_b = last(b_run) + 1
-                
+
                 # ... then copy the first element from a
                 v[i] = v_a[from_a]
                 i += 1
@@ -493,14 +491,14 @@ function merge_hi(o::Ordering, v::AbstractVector, a::Run, b::Run, state::MergeSt
                 from_a -= 1
 
                 if from_a < first(a) || from_b < 1 break end
-                
+
                 # Copy the next run from a
                 a_run = rgallop_last(o, v, v_b[from_b], first(a), from_a) + 1: from_a
                 i_start = i - length(a_run) + 1
                 v[i_start:i] = v[a_run]
                 i = i_start - 1
                 from_a = first(a_run) - 1
-                
+
                 # ... then copy the first element from b
                 v[i] = v_b[from_b]
                 i -= 1
