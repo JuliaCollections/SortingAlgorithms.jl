@@ -1,5 +1,6 @@
 module SortingAlgorithms
 
+using Compat
 using Base.Sort
 using Base.Order
 
