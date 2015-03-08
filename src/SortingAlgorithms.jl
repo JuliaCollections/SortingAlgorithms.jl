@@ -278,42 +278,46 @@ function next_run(o::Ordering, v::AbstractVector, lo::Int, hi::Int)
     end
 end
 
+function merge_at(o::Ordering, v::AbstractVector, state::MergeState, n::Integer)
+    a = state.runs[n]
+    b = state.runs[n+1]
+    merge(o,v,a,b,state)
+    state.runs[n] = first(a):last(b)
+    deleteat!(state.runs, n+1)
+    nothing
+end
+
 # Merge consecutive runs
-# For A,B,C = last three lengths, merge_collapse!()
-# maintains 2 invariants:
+# For A,B,C,D = last four lengths, merge_collapse!()
+# maintains 3 invariants:
 #
 #  A > B + C
-#  B > C
+#  B > C + D
+#  C > D
 #
 # If any of these are violated, a merge occurs to
 # correct it
-function merge_collapse(o::Ordering, v::AbstractVector, state::MergeState, force::Bool)
-    while length(state.runs) > 2
-        (a,b,c) = state.runs[end-2:end]
-        if length(a) > length(b)+length(c) && length(b) > length(c) && !force
-            break # invariants are satisfied, leave loop
-        end
-        if length(a) < length(c)
-            merge(o,v,a,b,state)
-            pop!(state.runs)
-            pop!(state.runs)
-            pop!(state.runs)
-            push!(state.runs, first(a):last(b))
-            push!(state.runs, c)
-        else
-            merge(o,v,b,c,state)
-            pop!(state.runs)
-            pop!(state.runs)
-            push!(state.runs, first(b):last(c))
-        end
-    end
-    if length(state.runs) == 2
-        (a,b) = state.runs[end-1:end]
-        if length(a) <= length(b) || force
-            merge(o,v,a,b,state)
-            pop!(state.runs)
-            pop!(state.runs)
-            push!(state.runs, first(a):last(b))
+function merge_collapse(o::Ordering, v::AbstractVector, state::MergeState)
+    while true
+        n = length(state.runs)
+        n <= 1 && break
+
+        # Check invariants 1 and 2
+        if (n >= 3 && length(state.runs[end-2]) <= length(state.runs[end-1]) + length(state.runs[end])) ||
+            (n >= 4 && length(state.runs[end-3]) <= length(state.runs[end-2]) + length(state.runs[end-1]))
+
+            if length(state.runs[end-2]) < length(state.runs[end])
+                merge_at(o,v,state,n-2)
+            else
+                merge_at(o,v,state,n-1)
+            end
+
+        # Check invariant 3
+        elseif length(state.runs[end-1]) <= length(state.runs[end])
+            merge_at(o,v,state,n-1)
+
+        else # Invariant is satisfied
+            break
         end
     end
 end
@@ -540,7 +544,7 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
             # Make a run of length minrun
             count = min(minrun, hi-i+1)
             run_range = i:i+count-1
-            sort!(v, i, i+count-1, SMALL_ALGORITHM, o)
+            sort!(v, i, i+count-1, DEFAULT_STABLE, o)
         else
             if !issorted(run_range)
                 run_range = last(run_range):first(run_range)
@@ -550,11 +554,13 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
         # Push this run onto the queue and merge if needed
         push!(state.runs, run_range)
         i = i+count
-        merge_collapse(o, v, state, false)
+        merge_collapse(o, v, state)
     end
     # Force merge at the end
-    if length(state.runs) > 1
-        merge_collapse(o, v, state, true)
+    while true
+        n = length(state.runs)
+        n <= 1 && break
+        merge_at(o, v, state, n-1)
     end
     return v
 end
