@@ -133,7 +133,7 @@ end
 #
 # Original author: @kmsquire
 
-typealias Run Range1{Int}
+typealias Run UnitRange{Int}
 
 const MIN_GALLOP = 7
 
