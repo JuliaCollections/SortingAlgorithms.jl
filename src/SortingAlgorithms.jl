@@ -78,7 +78,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
     for i = lo:hi
         v = uint_mapping(o, vs[i])
         for j = 1:iters
-            idx = int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK)+1
+            idx = @compat(Int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK)) + 1
             @inbounds bin[idx,j] += 1
         end
     end
@@ -89,7 +89,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
     for j = 1:iters
         # Unroll first data iteration, check for degenerate case
         v = uint_mapping(o, vs[hi])
-        idx = int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK)+1
+        idx = @compat(Int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK)) + 1
 
         # are all values the same at this radix?
         if bin[idx,j] == len;  continue;  end
@@ -102,7 +102,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
         # Finish the loop...
         @inbounds for i in hi-1:-1:lo
             v = uint_mapping(o, vs[i])
-            idx = int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK)+1
+            idx = @compat(Int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK)) + 1
             ci = cbin[idx]
             ts[ci] = vs[i]
             cbin[idx] -= 1
