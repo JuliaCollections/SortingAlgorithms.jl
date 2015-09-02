@@ -1,7 +1,7 @@
 # Sorting Algorithms
 
-[![SortingAlgorithms on julia-release](http://pkg.julialang.org/badges/SortingAlgorithms_release.svg)](http://pkg.julialang.org/?pkg=SortingAlgorithms&ver=release)
-[![SortingAlgorithms on julia-nightly](http://pkg.julialang.org/badges/SortingAlgorithms_nightly.svg)](http://pkg.julialang.org/?pkg=SortingAlgorithms&ver=nightly)
+[![SortingAlgorithms](http://pkg.julialang.org/badges/SortingAlgorithms_0.3.svg)](http://pkg.julialang.org/?pkg=SortingAlgorithms&ver=0.3)
+[![SortingAlgorithms](http://pkg.julialang.org/badges/SortingAlgorithms_0.4.svg)](http://pkg.julialang.org/?pkg=SortingAlgorithms&ver=0.4)
 [![Build Status](https://travis-ci.org/JuliaLang/SortingAlgorithms.jl.svg?branch=master)](https://travis-ci.org/JuliaLang/SortingAlgorithms.jl)
 [![Coverage Status](https://coveralls.io/repos/JuliaLang/SortingAlgorithms.jl/badge.svg)](https://coveralls.io/r/JuliaLang/SortingAlgorithms.jl)
 
