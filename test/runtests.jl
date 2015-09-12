@@ -3,7 +3,7 @@ using SortingAlgorithms
 
 a = rand(1:10000, 1000)
 
-for alg in {TimSort, HeapSort, RadixSort}
+for alg in [TimSort, HeapSort, RadixSort]
     b = sort(a, alg=alg)
     @test issorted(b)
     ix = sortperm(a, alg=alg)
