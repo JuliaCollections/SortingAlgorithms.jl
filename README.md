@@ -8,6 +8,7 @@
 The `SortingAlgorithms` package provides three sorting algorithms that can be used with Julia's [standard sorting API](http://docs.julialang.org/en/latest/stdlib/sort/):
 
 - [HeapSort] – an unstable, general purpose, in-place, O(n log n) comparison sort that works by heapifying an array and repeatedly taking the maximal element from the heap.
+- QuickSort3 - an unstable, general purpose, in-place, O(n log n) comparison sort variation of the classic QuickSort that uses a three-way partion algorithm. It  can be 1.1x slower than QuickSort in base but works in near O(n) time when there are few unique values in the array.
 - [TimSort] – a stable, general purpose, hybrid, O(n log n) comparison sort that adapts to different common patterns of partially ordered input data.
 - [RadixSort] – a stable, special case, in-place, O(n) non-comparison sort that works by sorting data with fixed size, one digit at a time.
 

@@ -7,15 +7,17 @@ using Base.Order
 import Base.Sort: sort!
 import Base.Collections: heapify!, percolate_down!
 
-export HeapSort, TimSort, RadixSort
+export HeapSort, TimSort, RadixSort, QuickSort3
 
-immutable HeapSortAlg  <: Algorithm end
-immutable TimSortAlg   <: Algorithm end
-immutable RadixSortAlg <: Algorithm end
+immutable HeapSortAlg   <: Algorithm end
+immutable TimSortAlg    <: Algorithm end
+immutable RadixSortAlg  <: Algorithm end
+immutable QuickSort3Alg <: Algorithm end
 
-const HeapSort  = HeapSortAlg()
-const TimSort   = TimSortAlg()
-const RadixSort = RadixSortAlg()
+const HeapSort   = HeapSortAlg()
+const TimSort    = TimSortAlg()
+const RadixSort  = RadixSortAlg()
+const QuickSort3 = QuickSort3Alg()
 
 
 ## Heap sort
@@ -35,6 +37,41 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, a::HeapSortAlg, o::Ordering)
         percolate_down!(v,1,x,r,i-1)
     end
     v
+end
+
+
+## Quick sort with 3 way partitioning
+
+function partition3!(v::AbstractVector, lo::Int, hi::Int, o::Ordering)
+    p = Base.Sort.selectpivot!(v, lo, hi, o)
+    i = k = lo + 1; j = hi - 1
+    @inbounds while true
+        while lt(o, v[i], p); i += 1; end
+        while lt(o, p, v[j]); j -= 1; end
+        k = max(i, k)
+        while v[k] == p; k += 1; end
+        k >= j && break
+        v[k], v[j] = v[j], v[k]
+        i = k
+    end
+    j -= (i == j)
+    @inbounds v[j], v[lo] = p, v[j]
+    return i, j
+end
+
+function sort!(v::AbstractVector, lo::Int, hi::Int, a::QuickSort3Alg, o::Ordering)
+    @inbounds while lo < hi
+        hi-lo <= SMALL_THRESHOLD && return sort!(v, lo, hi, SMALL_ALGORITHM, o)
+        i, j = partition3!(v, lo, hi, o)
+        if i-lo < hi-j
+            lo < (i-1) && sort!(v, lo, i-1, a, o)
+            lo = j+1
+        else
+            j+1 < hi && sort!(v, j+1, hi, a, o)
+            hi = i-1
+        end
+    end
+    return v
 end
 
 
