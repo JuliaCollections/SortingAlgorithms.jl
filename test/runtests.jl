@@ -1,6 +1,7 @@
 using Base.Test
 using SortingAlgorithms
 using Compat
+using StatsBase
 
 a = rand(1:10000, 1000)
 
@@ -56,14 +57,14 @@ srand(0xdeadbeef)
 for n in [0:10..., 100, 101, 1000, 1001]
     r = 1:10
     v = rand(1:10,n)
-    h = hist(v,r)
+    h = fit(Histogram, v, r)
 
     for ord in [Base.Order.Forward, Base.Order.Reverse]
         # insertion sort (stable) as reference
         pi = sortperm(v, alg=InsertionSort, order=ord)
         @test isperm(pi)
         si = v[pi]
-        @test hist(si,r) == h
+        @test fit(Histogram, si, r) == h
         @test issorted(si, order=ord)
         @test all(issorted,[pi[si.==x] for x in r])
         c = copy(v)

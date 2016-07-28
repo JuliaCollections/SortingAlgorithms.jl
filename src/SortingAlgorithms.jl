@@ -1,6 +1,7 @@
 module SortingAlgorithms
 
 using Compat
+import Compat.view
 using Base.Sort
 using Base.Order
 
@@ -22,7 +23,7 @@ const RadixSort = RadixSortAlg()
 
 function sort!(v::AbstractVector, lo::Int, hi::Int, a::HeapSortAlg, o::Ordering)
     if lo > 1 || hi < length(v)
-        return sort!(sub(v, lo:hi), 1, length(v), a, o)
+        return sort!(view(v, lo:hi), 1, length(v), a, o)
     end
     r = ReverseOrdering(o)
     heapify!(v, r)
@@ -548,7 +549,7 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
         else
             if !issorted(run_range)
                 run_range = last(run_range):first(run_range)
-                reverse!(sub(v, run_range))
+                reverse!(view(v, run_range))
             end
         end
         # Push this run onto the queue and merge if needed
