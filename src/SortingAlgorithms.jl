@@ -8,15 +8,17 @@ using Base.Order
 import Base.Sort: sort!
 import Base.Collections: heapify!, percolate_down!
 
-export HeapSort, TimSort, RadixSort
+export HeapSort, TimSort, RadixSort, SelectionSort
 
 immutable HeapSortAlg  <: Algorithm end
 immutable TimSortAlg   <: Algorithm end
 immutable RadixSortAlg <: Algorithm end
+immutable SelectionSortAlg <: Algorithm end
 
 const HeapSort  = HeapSortAlg()
 const TimSort   = TimSortAlg()
 const RadixSort = RadixSortAlg()
+const SelectionSort = SelectionSortAlg()
 
 
 ## Heap sort
@@ -562,6 +564,27 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
         n = length(state.runs)
         n <= 1 && break
         merge_at(o, v, state, n-1)
+    end
+    return v
+end
+
+
+## Selection Sort
+
+function sort!(v::AbstractVector, lo::Int, hi::Int, a::SelectionSortAlg, o::Ordering)
+    for i = lo:hi
+        minid = i
+	#Selecting smallest element
+        for j = i+1:hi
+            #Find index of smallest element
+            if v[j] < v[minid]
+	        minid = j
+	    end
+        end
+    #Interchanging elements
+    temp = v[i]
+    v[i] = v[minid]
+    v[minid] = temp  
     end
     return v
 end
