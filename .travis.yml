@@ -1,14 +1,15 @@
 language: julia
 os:
-    - osx
-    - linux
+  - osx
+  - linux
 julia:
-    - 0.4
-    - nightly
+  - 0.4
+  - 0.5
+  - nightly
 notifications:
-    email: false
-script:
-    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-    - julia -e 'Pkg.clone(pwd()); Pkg.build("SortingAlgorithms"); Pkg.test("SortingAlgorithms"; coverage=true)'
-    - julia -e 'cd(Pkg.dir("SortingAlgorithms")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
-
+  email: false
+#script:
+#  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+#  - julia -e 'Pkg.clone(pwd()); Pkg.build("SortingAlgorithms"); Pkg.test("SortingAlgorithms"; coverage=true)'
+after_success:
+  - julia -e 'cd(Pkg.dir("SortingAlgorithms")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
