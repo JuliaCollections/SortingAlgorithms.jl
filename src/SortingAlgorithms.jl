@@ -1,12 +1,15 @@
+__precompile__()
+
 module SortingAlgorithms
 
 using Compat
+using DataStructures
 import Compat.view
 using Base.Sort
 using Base.Order
 
 import Base.Sort: sort!
-import Base.Collections: heapify!, percolate_down!
+import DataStructures: heapify!, percolate_down!
 
 export HeapSort, TimSort, RadixSort
 
@@ -45,10 +48,10 @@ end
 uint_mapping(::ForwardOrdering, x::Unsigned) = x
 for (signedty, unsignedty) in ((Int8, UInt8), (Int16, UInt16), (Int32, UInt32), (Int64, UInt64), (Int128, UInt128))
     # In Julia 0.4 we can just use unsigned() here
-    @eval uint_mapping(::ForwardOrdering, x::$signedty) = reinterpret($unsignedty, x $ typemin(typeof(x)))
+    @eval uint_mapping(::ForwardOrdering, x::$signedty) = reinterpret($unsignedty, xor(x, typemin(typeof(x))))
 end
-uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(UInt32, ifelse(y < 0, ~y, y $ typemin(Int32))))
-uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(UInt64, ifelse(y < 0, ~y, y $ typemin(Int64))))
+uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(UInt32, ifelse(y < 0, ~y, xor(y, typemin(Int32)))))
+uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(UInt64, ifelse(y < 0, ~y, xor(y, typemin(Int64)))))
 
 uint_mapping{Fwd}(rev::ReverseOrdering{Fwd}, x) = ~uint_mapping(rev.fwd, x)
 uint_mapping{T<:Real}(::ReverseOrdering{ForwardOrdering}, x::T) = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
@@ -65,7 +68,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
     if lo >= hi;  return vs;  end
 
     # Make sure we're sorting a bits type
-    T = ordtype(o, vs)
+    T = Base.Order.ordtype(o, vs)
     if !isbits(T)
         error("Radix sort only sorts bits types (got $T)")
     end
@@ -134,7 +137,7 @@ end
 #
 # Original author: @kmsquire
 
-typealias Run UnitRange{Int}
+const Run = UnitRange{Int}
 
 const MIN_GALLOP = 7
 
