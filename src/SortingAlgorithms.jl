@@ -68,7 +68,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
     if lo >= hi;  return vs;  end
 
     # Make sure we're sorting a bits type
-    T = ordtype(o, vs)
+    T = Base.Order.ordtype(o, vs)
     if !isbits(T)
         error("Radix sort only sorts bits types (got $T)")
     end
