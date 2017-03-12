@@ -1,12 +1,15 @@
+__precompile__()
+
 module SortingAlgorithms
 
 using Compat
+using DataStructures
 import Compat.view
 using Base.Sort
 using Base.Order
 
 import Base.Sort: sort!
-import Base.Collections: heapify!, percolate_down!
+import DataStructures: heapify!, percolate_down!
 
 export HeapSort, TimSort, RadixSort
 
@@ -134,7 +137,7 @@ end
 #
 # Original author: @kmsquire
 
-typealias Run UnitRange{Int}
+const Run = UnitRange{Int}
 
 const MIN_GALLOP = 7
 
