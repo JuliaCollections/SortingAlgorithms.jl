@@ -48,7 +48,7 @@ end
 uint_mapping(::ForwardOrdering, x::Unsigned) = x
 for (signedty, unsignedty) in ((Int8, UInt8), (Int16, UInt16), (Int32, UInt32), (Int64, UInt64), (Int128, UInt128))
     # In Julia 0.4 we can just use unsigned() here
-    @eval uint_mapping(::ForwardOrdering, x::$signedty) = reinterpret($unsignedty, x $ typemin(typeof(x)))
+    @eval uint_mapping(::ForwardOrdering, x::$signedty) = reinterpret($unsignedty, xor(x, typemin(typeof(x))))
 end
 uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(UInt32, ifelse(y < 0, ~y, xor(y, typemin(Int32)))))
 uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(UInt64, ifelse(y < 0, ~y, xor(y, typemin(Int64)))))
