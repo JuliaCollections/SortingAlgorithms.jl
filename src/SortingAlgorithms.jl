@@ -53,8 +53,8 @@ end
 uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(UInt32, ifelse(y < 0, ~y, xor(y, typemin(Int32)))))
 uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(UInt64, ifelse(y < 0, ~y, xor(y, typemin(Int64)))))
 
-uint_mapping{Fwd}(rev::ReverseOrdering{Fwd}, x) = ~uint_mapping(rev.fwd, x)
-uint_mapping{T<:Real}(::ReverseOrdering{ForwardOrdering}, x::T) = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
+uint_mapping(rev::ReverseOrdering{Fwd}, x) where {Fwd} = ~uint_mapping(rev.fwd, x)
+uint_mapping(::ReverseOrdering{ForwardOrdering}, x::T) where {T<:Real} = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
 
 uint_mapping(o::By,   x     ) = uint_mapping(Forward, o.by(x))
 uint_mapping(o::Perm, i::Int) = uint_mapping(o.order, o.data[i])
@@ -82,7 +82,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
     for i = lo:hi
         v = uint_mapping(o, vs[i])
         for j = 1:iters
-            idx = @compat(Int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK)) + 1
+            idx = Int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK) + 1
             @inbounds bin[idx,j] += 1
         end
     end
@@ -93,7 +93,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
     for j = 1:iters
         # Unroll first data iteration, check for degenerate case
         v = uint_mapping(o, vs[hi])
-        idx = @compat(Int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK)) + 1
+        idx = Int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK) + 1
 
         # are all values the same at this radix?
         if bin[idx,j] == len;  continue;  end
@@ -106,7 +106,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
         # Finish the loop...
         @inbounds for i in hi-1:-1:lo
             v = uint_mapping(o, vs[i])
-            idx = @compat(Int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK)) + 1
+            idx = Int((v >> (j-1)*RADIX_SIZE) & RADIX_MASK) + 1
             ci = cbin[idx]
             ts[ci] = vs[i]
             cbin[idx] -= 1
