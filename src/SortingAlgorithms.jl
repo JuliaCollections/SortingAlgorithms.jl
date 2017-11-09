@@ -13,9 +13,9 @@ import DataStructures: heapify!, percolate_down!
 
 export HeapSort, TimSort, RadixSort
 
-immutable HeapSortAlg  <: Algorithm end
-immutable TimSortAlg   <: Algorithm end
-immutable RadixSortAlg <: Algorithm end
+struct HeapSortAlg  <: Algorithm end
+struct TimSortAlg   <: Algorithm end
+struct RadixSortAlg <: Algorithm end
 
 const HeapSort  = HeapSortAlg()
 const TimSort   = TimSortAlg()
@@ -141,7 +141,7 @@ const Run = UnitRange{Int}
 
 const MIN_GALLOP = 7
 
-type MergeState
+mutable struct MergeState
     runs::Vector{Run}
     min_gallop::Int
 end
