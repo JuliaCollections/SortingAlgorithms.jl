@@ -53,8 +53,8 @@ end
 uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(UInt32, ifelse(y < 0, ~y, xor(y, typemin(Int32)))))
 uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(UInt64, ifelse(y < 0, ~y, xor(y, typemin(Int64)))))
 
-uint_mapping(::ReverseOrdering{ForwardOrdering}, x::Real) = ~uint_mapping(rev.fwd, x)
-uint_mapping(::ReverseOrdering{ForwardOrdering}, x::T) where {T<:Real} = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
+uint_mapping(rev::ReverseOrdering, x) = ~uint_mapping(rev.fwd, x)
+uint_mapping(::ReverseOrdering{ForwardOrdering}, x::Real) = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
 
 uint_mapping(o::By,   x     ) = uint_mapping(Forward, o.by(x))
 uint_mapping(o::Perm, i::Int) = uint_mapping(o.order, o.data[i])
