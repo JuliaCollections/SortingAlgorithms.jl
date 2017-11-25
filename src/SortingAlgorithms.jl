@@ -8,10 +8,13 @@ import Compat.view
 using Base.Sort
 using Base.Order
 
-import Base.Sort: sort!
+import Base.Sort: sort!, sortperm, sortperm!, isbits, ordtype, sizeof
 import DataStructures: heapify!, percolate_down!
 
-export HeapSort, TimSort, RadixSort
+using SortingAlgorithms
+using Compat, Base.Test
+
+export HeapSort, TimSort, RadixSort, sortperm_radix, sortandperm
 
 struct HeapSortAlg  <: Algorithm end
 struct TimSortAlg   <: Algorithm end
@@ -20,6 +23,8 @@ struct RadixSortAlg <: Algorithm end
 const HeapSort  = HeapSortAlg()
 const TimSort   = TimSortAlg()
 const RadixSort = RadixSortAlg()
+
+include("sortperm.jl")
 
 
 ## Heap sort
