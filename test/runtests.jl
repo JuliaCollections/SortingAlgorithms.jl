@@ -84,6 +84,15 @@ for n in [0:10..., 100, 101, 1000, 1001]
             @test s == v
         end
 
+        # tests sortperm_radix
+        p = sortperm_radix(v, order=ord)
+        @test p = pi
+        s = copy(v)
+        permute!(s, p)
+        @test s == si
+        ipermute!(s, p)
+        @test s == v
+
         # unstable algorithms
         for alg in [HeapSort]
             p = sortperm(v, alg=alg, order=ord)
