@@ -11,17 +11,17 @@ sizeof(::Type{Valindex{T,S}}) where {T,S} = Base.sizeof(T)
 
 returns both the sort(v) as well as sortperm(v)
 """
-function sortandperm(v, alg::RadixSortAlg, o::Ordering= Base.ForwardOrdering())
+function sortandperm(v, alg::RadixSortAlg, order::Ordering= Base.ForwardOrdering())
 	sortandperm_radix(v, o)
 end
 
-function _sortandperm_radix(v::AbstractVector{T}, o::Ordering= Base.ForwardOrdering()) where T
+function _sortandperm_radix(v::AbstractVector{T}, order::Ordering= Base.ForwardOrdering()) where T
 	vv = Valindex{T,Int}[(vv,i) for (i,vv) in enumerate(v)]
 	sort!(vv, alg=RadixSort, order = o)
 	vv
 end
 
-function sortandperm_radix(v::AbstractVector{T}, o::Ordering= Base.ForwardOrdering()) where T
+function sortandperm_radix(v::AbstractVector{T}, order::Ordering= Base.ForwardOrdering()) where T
 	vv = _sortandperm_radix(v, o)
 	res = Int[v[2] for v in vv]
 	val = T[v[1] for v in vv]
@@ -33,7 +33,7 @@ end
 
 sortperm using the radixsort algorithm
 """
-function sortperm_radix(v, o::Ordering = Base.ForwardOrdering())
+function sortperm_radix(v, order::Ordering = Base.ForwardOrdering())
 	vv = _sortandperm_radix(v,o)
 	Int[v[2] for v in vv]
 end
