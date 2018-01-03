@@ -11,15 +11,17 @@ using Base.Order
 import Base.Sort: sort!
 import DataStructures: heapify!, percolate_down!
 
-export HeapSort, TimSort, RadixSort
+export HeapSort, TimSort, RadixSort, StringRadixSort
 
 struct HeapSortAlg  <: Algorithm end
 struct TimSortAlg   <: Algorithm end
 struct RadixSortAlg <: Algorithm end
+struct StringRadixSortAlg <: Algorithm end
 
 const HeapSort  = HeapSortAlg()
 const TimSort   = TimSortAlg()
 const RadixSort = RadixSortAlg()
+const StringRadixSort = StringRadixSortAlg() # this is needed to make sortperm work
 
 
 ## Heap sort
@@ -43,6 +45,8 @@ end
 
 
 ## Radix sort
+
+include("string_radix_sort.jl")
 
 # Map a bits-type to an unsigned int, maintaining sort order
 uint_mapping(::ForwardOrdering, x::Unsigned) = x

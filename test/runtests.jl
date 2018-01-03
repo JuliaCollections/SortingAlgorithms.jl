@@ -113,3 +113,12 @@ for n in [0:10..., 100, 101, 1000, 1001]
         @test reinterpret(UInt64,vp) == reinterpret(UInt64,s)
     end
 end
+
+# string sorting tests
+
+x = [randstring(32) for i = 1:1000];
+xsorted = sort(x, alg=StringRadixSort)
+@test issorted(xsorted)
+
+xsortedindex = sortperm(x, alg=StringRadixSort)
+@test issorted(x[xsortedindex])
