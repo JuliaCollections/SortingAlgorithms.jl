@@ -1,21 +1,17 @@
 import Base: Forward, ForwardOrdering, Reverse, ReverseOrdering, Lexicographic, LexicographicOrdering, sortperm, Ordering, 
             setindex!, getindex, similar
-import SortingAlgorithms: RadixSort, RadixSortAlg
+# import SortingAlgorithms: RadixSort, RadixSortAlg
 """
     load_bits([type,] s, skipbytes)
 
 Load the underlying bits of a string `s` into a `type` of the user's choosing.
 The default is `UInt`, so on a 64 bit machine it loads 64 bits (8 bytes) at a time.
-If the `String` is shorter than 8 bytes then it's padded with 0. 
-
-Assumes machine is little-endian
+If the `String` is shorter than 8 bytes then it's padded with 0.
 
 - `type`:       any bits type that has `>>`, `<<`, and `&` operations defined
 - `s`:          a `String`
 - `skipbytes`:  how many bytes to skip e.g. load_bits("abc", 1) will load "bc" as bits
 """
-load_bits(s::String, skipbytes = 0) = load_bits(UInt, s, skipbytes)
-
 function load_bits(::Type{T}, s::String, skipbytes = 0) where T
     n = sizeof(s)
     if n < skipbytes
@@ -24,10 +20,12 @@ function load_bits(::Type{T}, s::String, skipbytes = 0) where T
         return ntoh(unsafe_load(Ptr{T}(pointer(s, skipbytes+1))))
     else
         ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
-        h = unsafe_load(Ptr{T}(pointer(s, skipbytes+1)))
-        h = h << ns
-        h = h >> ns
-        return ntoh(h)
+        # Some part of the return result should be padded with 0s; it is 
+        # where the length of remaing part of string to be loaded is smaller 
+        # than the `sizeof(T)` load the bits of the string but erase the 
+        # part that should be padded with 0s by bit-shifting the part "out" 
+        # then "in"
+        return (ntoh(unsafe_load(Ptr{T}(pointer(s, skipbytes+1)))) >> ns) << ns
     end
 end
 
@@ -48,15 +46,19 @@ function sort!(svec::AbstractVector, lo::Int, hi::Int, ::StringRadixSortAlg, o::
     end
 end
 
-function sort!(svec::AbstractVector{String}, lo::Int, hi::Int, ::StringRadixSortAlg, o::O) where O <: Union{ForwardOrdering, ReverseOrdering, LexicographicOrdering, Perm}
+function sort!(svec::AbstractVector{String}, lo::Int, hi::Int, ::StringRadixSortAlg, o::O) where O <: Union{ForwardOrdering, ReverseOrdering, LexicographicOrdering}
     #  Input checking
-    if isa(o, Perm)
-        if eltype(o.data) != String
-            throw(ArgumentError("Cannot use StringRadixSort on type $(eltype(o.data))"))
-        end
-        o = o.order
-        return
-    end
+
+    # this should never be the case where `o isa Perm` but the `svec`` is a string
+    # if isa(o, Perm)
+    #     throw(ArgumentError("Cannot use StringRadixSort on type $(eltype(o.data))"))
+        # if eltype(o.data) != String
+        #     throw(ArgumentError("Cannot use StringRadixSort on type $(eltype(o.data))"))
+        # end
+        # o = o.order
+        # svec = o.data
+        # return
+    # end
     
     if lo >= hi;  return svec;  end
 
@@ -170,12 +172,16 @@ function sorttwo!(vs::AbstractVector{T}, index, lo::Int = 1, hi::Int=length(vs))
 end
 
 """
-    sortperm_radixsort()
+    sortperm_radixsort(svec, rev = nothing, order = Forward)
 
-Currently radixsot 
+To return a `String` vector using LSD radixsort
 """
 function sortperm_radixsort(svec::AbstractVector{String}; rev::Union{Bool,Void}=nothing, order::Ordering=Forward)
-    siv = StringIndexVector(copy(svec), collect(1:length(svec)))
+    sortperm_radixsort!(copy(svec), rev = rev, order =order)
+end
+
+function sortperm_radixsort!(svec::AbstractVector{String}; rev::Union{Bool,Void}=nothing, order::Ordering=Forward)
+    siv = StringIndexVector(svec, collect(1:length(svec)))
 
     # find the maximum string length
     lens = reduce((x,y) -> max(x,sizeof(y)),0, svec)
@@ -210,9 +216,9 @@ function sortperm_radixsort(svec::AbstractVector{String}; rev::Union{Bool,Void}=
     siv.index
 end
 
-"Simple data structure for carrying a string vector and it's index; this allows
+"Simple data structure for carrying a string vector and its index; this allows
 `sorttwo!` to sort the radix of the string vector and reorder the string and its
-index at the same time allowing for faster sort_perm"
+index at the same time opening the way for faster sort_perm"
 struct StringIndexVector
     svec::Vector{String}
     index::Vector{Int}

@@ -120,5 +120,6 @@ x = [randstring(32) for i = 1:1000];
 xsorted = sort(x, alg=StringRadixSort)
 @test issorted(xsorted)
 
+xx = copy(x)
 xsortedindex = sortperm(x, alg=StringRadixSort)
 @test issorted(x[xsortedindex])
