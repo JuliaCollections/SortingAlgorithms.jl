@@ -57,17 +57,20 @@ function load_bits_with_padding(::Type{UInt128}, s::String, skipbytes = 0)
         skipbytes += 8
         remaining_bytes_to_load -= 8
         shift_for_padding -= 8*8
-    elseif  remaining_bytes_to_load >= 4
+    end
+    if  remaining_bytes_to_load >= 4
         res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt32}(pointer(s, skipbytes+1))))) << (shift_for_padding - 4*8)
         skipbytes += 4
         remaining_bytes_to_load -= 4
         shift_for_padding -= 4*8
-    elseif  remaining_bytes_to_load >= 2
+    end
+    if  remaining_bytes_to_load >= 2
         res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt16}(pointer(s, skipbytes+1))))) << (shift_for_padding - 2*8)
         skipbytes += 2
         remaining_bytes_to_load -= 2
         shift_for_padding -= 2*8
-    elseif  remaining_bytes_to_load >= 1
+    end
+    if  remaining_bytes_to_load >= 1
         res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
         skipbytes += 1
         remaining_bytes_to_load -= 1
@@ -92,12 +95,14 @@ function load_bits_with_padding(::Type{UInt64}, s::String, skipbytes = 0)
         skipbytes += 4
         remaining_bytes_to_load -= 4
         shift_for_padding -= 4*8
-    elseif  remaining_bytes_to_load >= 2
+    end
+    if  remaining_bytes_to_load >= 2
         res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt16}(pointer(s, skipbytes+1))))) << (shift_for_padding - 2*8)
         skipbytes += 2
         remaining_bytes_to_load -= 2
         shift_for_padding -= 2*8
-    elseif  remaining_bytes_to_load >= 1
+    end
+    if  remaining_bytes_to_load >= 1
         res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
         skipbytes += 1
         remaining_bytes_to_load -= 1
@@ -121,7 +126,8 @@ function load_bits_with_padding(::Type{UInt32}, s::String, skipbytes = 0)
         skipbytes += 2
         remaining_bytes_to_load -= 2
         shift_for_padding -= 2*8
-    elseif  remaining_bytes_to_load >= 1
+    end
+    if  remaining_bytes_to_load >= 1
         res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
         skipbytes += 1
         remaining_bytes_to_load -= 1
