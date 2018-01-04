@@ -17,28 +17,136 @@ If the `String` is shorter than 8 bytes then it's padded with 0.
 # successively smaller types
 # it is assumed that the type you are trying to load into needs padding
 # i.e. `remaining_bytes_to_load > 0`
-load_bits_with_padding(::Type{UInt128}, s::String, skipbytes=0)= load_bits_with_padding(UInt128, s, skipbytes, [UInt64, UInt32, UInt16, UInt8])
-load_bits_with_padding(::Type{UInt64}, s::String, skipbytes=0) = load_bits_with_padding(UInt64, s, skipbytes, [UInt32, UInt16, UInt8])
-load_bits_with_padding(::Type{UInt32}, s::String, skipbytes=0) = load_bits_with_padding(UInt32, s, skipbytes, [UInt16, UInt8])
+# load_bits_with_padding(::Type{UInt128}, s::String, skipbytes=0)= load_bits_with_padding(UInt128, s, skipbytes, [UInt64, UInt32, UInt16, UInt8])
+# load_bits_with_padding(::Type{UInt64}, s::String, skipbytes=0) = load_bits_with_padding(UInt64, s, skipbytes, [UInt32, UInt16, UInt8])
+# load_bits_with_padding(::Type{UInt32}, s::String, skipbytes=0) = load_bits_with_padding(UInt32, s, skipbytes, [UInt16, UInt8])
 
-function load_bits_with_padding(::Type{T}, s::String, skipbytes, smaller_types) where T <: Unsigned    
+# function load_bits_with_padding(::Type{T}, s::String, skipbytes, smaller_types) where T <: Unsigned    
+#     n = sizeof(s)
+
+#     ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
+#     remaining_bytes_to_load = sizeof(T) - ns÷8
+#     # start
+#     res = zero(T)
+#     shift_for_padding = sizeof(T)*8
+
+#     smaller_sizes = sizeof.(smaller_types)
+#     for (S, type_size) in zip(smaller_types, smaller_sizes)
+#         if  remaining_bytes_to_load >= type_size
+#             res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{S}(pointer(s, skipbytes+1))))) << (shift_for_padding - type_size*8)
+#             skipbytes += type_size
+#             remaining_bytes_to_load -= type_size
+#             shift_for_padding -= type_size*8
+#         end
+#     end
+#     return res
+# end
+
+function load_bits_with_padding(::Type{UInt128}, s::String, skipbytes = 0)  
     n = sizeof(s)
-
+    T = UInt128
     ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
     remaining_bytes_to_load = sizeof(T) - ns÷8
     # start
     res = zero(T)
     shift_for_padding = sizeof(T)*8
 
-    smaller_sizes = sizeof.(smaller_types)
-    for (S, type_size) in zip(smaller_types, smaller_sizes)
-        if  remaining_bytes_to_load >= type_size
-            res |= Base.zext_int(T, load_bits(S, s, skipbytes)) << (shift_for_padding - type_size*8)
-            skipbytes += type_size
-            remaining_bytes_to_load -= type_size
-            shift_for_padding -= type_size*8
-        end
+        
+    if  remaining_bytes_to_load >= 8
+        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt64}(pointer(s, skipbytes+1))))) << (shift_for_padding - 8*8)
+        skipbytes += 8
+        remaining_bytes_to_load -= 8
+        shift_for_padding -= 8*8
+    elseif  remaining_bytes_to_load >= 4
+        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt32}(pointer(s, skipbytes+1))))) << (shift_for_padding - 4*8)
+        skipbytes += 4
+        remaining_bytes_to_load -= 4
+        shift_for_padding -= 4*8
+    elseif  remaining_bytes_to_load >= 2
+        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt16}(pointer(s, skipbytes+1))))) << (shift_for_padding - 2*8)
+        skipbytes += 2
+        remaining_bytes_to_load -= 2
+        shift_for_padding -= 2*8
+    elseif  remaining_bytes_to_load >= 1
+        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
+        skipbytes += 1
+        remaining_bytes_to_load -= 1
+        shift_for_padding -= 1*8
     end
+
+    return res
+end
+
+function load_bits_with_padding(::Type{UInt64}, s::String, skipbytes = 0)  
+    n = sizeof(s)
+    T = UInt64
+    ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
+    remaining_bytes_to_load = sizeof(T) - ns÷8
+    # start
+    res = zero(T)
+    shift_for_padding = sizeof(T)*8
+
+        
+    if  remaining_bytes_to_load >= 4
+        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt32}(pointer(s, skipbytes+1))))) << (shift_for_padding - 4*8)
+        skipbytes += 4
+        remaining_bytes_to_load -= 4
+        shift_for_padding -= 4*8
+    elseif  remaining_bytes_to_load >= 2
+        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt16}(pointer(s, skipbytes+1))))) << (shift_for_padding - 2*8)
+        skipbytes += 2
+        remaining_bytes_to_load -= 2
+        shift_for_padding -= 2*8
+    elseif  remaining_bytes_to_load >= 1
+        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
+        skipbytes += 1
+        remaining_bytes_to_load -= 1
+        shift_for_padding -= 1*8
+    end
+
+    return res
+end
+
+function load_bits_with_padding(::Type{UInt32}, s::String, skipbytes = 0)  
+    n = sizeof(s)
+    T = UInt32
+    ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
+    remaining_bytes_to_load = sizeof(T) - ns÷8
+    # start
+    res = zero(T)
+    shift_for_padding = sizeof(T)*8
+        
+    if  remaining_bytes_to_load >= 2
+        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt16}(pointer(s, skipbytes+1))))) << (shift_for_padding - 2*8)
+        skipbytes += 2
+        remaining_bytes_to_load -= 2
+        shift_for_padding -= 2*8
+    elseif  remaining_bytes_to_load >= 1
+        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
+        skipbytes += 1
+        remaining_bytes_to_load -= 1
+        shift_for_padding -= 1*8
+    end
+
+    return res
+end
+
+function load_bits_with_padding(::Type{UInt16}, s::String, skipbytes = 0)  
+    n = sizeof(s)
+    T = UInt16
+    ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
+    remaining_bytes_to_load = sizeof(T) - ns÷8
+    # start
+    res = zero(T)
+    shift_for_padding = sizeof(T)*8
+        
+    if  remaining_bytes_to_load >= 1
+        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
+        skipbytes += 1
+        remaining_bytes_to_load -= 1
+        shift_for_padding -= 1*8
+    end
+
     return res
 end
 
