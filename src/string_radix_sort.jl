@@ -12,21 +12,63 @@ If the `String` is shorter than 8 bytes then it's padded with 0.
 - `s`:          a `String`
 - `skipbytes`:  how many bytes to skip e.g. load_bits("abc", 1) will load "bc" as bits
 """
-function load_bits(::Type{T}, s::String, skipbytes = 0) where T
+ # Some part of the return result should be padded with 0s.
+# To prevent any possibility of segfault we load the bits using
+# successively smaller types
+# it is assumed that the type you are trying to load into needs padding
+# i.e. `remaining_bytes_to_load > 0`
+function load_bits_with_padding(::Type{UInt128}, s::String, skipbytes = 0)
+    n = sizeof(s)
+    T = UInt128
+    ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
+    remaining_bytes_to_load = sizeof(T) - ns÷8
+    # start
+    res = zero(T)
+    shift_for_padding = sizeof(T)*8
+
+    smaller_types = [UInt64, UInt32, UInt16, UInt8]
+    smaller_sizes = sizeof.(smaller_types)
+    for (S, type_size) in zip(smaller_types,smaller_sizes)
+        if  remaining_bytes_to_load >= type_size
+            res |= Base.zext_int(T, load_bits(UInt64, s, skipbytes)) << (shift_for_padding - type_size*8)
+            skipbytes += type_size
+            remaining_bytes_to_load -= type_size
+            shift_for_padding -= type_size*8
+        elseif remaining_bytes_to_load >= 4
+            res |= Base.zext_int(T, load_bits(UInt32, s, skipbytes)) << (shift_for_padding - 32)
+            skipbytes += 4
+            remaining_bytes_to_load -= 4
+            shift_for_padding -= 32
+        elseif remaining_bytes_to_load >= 2
+            res |= Base.zext_int(T, load_bits(UInt16, s, skipbytes)) << (shift_for_padding - 16)
+            skipbytes += 2
+            remaining_bytes_to_load -= 2
+            shift_for_padding -= 16
+        else 
+            res |= Base.zext_int(T, load_bits(UInt8, s, skipbytes)) << (shift_for_padding - 8)
+            # skipbytes += 1
+            remaining_bytes_to_load -= 1
+        end
+        println("got here3")
+        println(res)
+        ok += 1
+        if ok == 3
+            return 
+        end
+    end
+    return res
+end
+
+function load_bits(::Type{T}, s::String, skipbytes = 0)::T where T <: Unsigned
     n = sizeof(s)
     if n < skipbytes
-        return zero(T)
+        res = zero(T)
     elseif n - skipbytes >= sizeof(T)
-        return ntoh(unsafe_load(Ptr{T}(pointer(s, skipbytes+1))))
+        res = ntoh(unsafe_load(Ptr{T}(pointer(s, skipbytes+1))))
     else
-        ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
-        # Some part of the return result should be padded with 0s; it is 
-        # where the length of remaing part of string to be loaded is smaller 
-        # than the `sizeof(T)` load the bits of the string but erase the 
-        # part that should be padded with 0s by bit-shifting the part "out" 
-        # then "in"
-        return (ntoh(unsafe_load(Ptr{T}(pointer(s, skipbytes+1)))) >> ns) << ns
+        res = load_bits_with_padding(T, s, skipbytes)
     end
+    return res
 end
 
 
