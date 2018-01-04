@@ -48,7 +48,6 @@ end
 
 function sort!(svec::AbstractVector{String}, lo::Int, hi::Int, ::StringRadixSortAlg, o::O) where O <: Union{ForwardOrdering, ReverseOrdering, LexicographicOrdering}
     #  Input checking
-
     # this should never be the case where `o isa Perm` but the `svec`` is a string
     # if isa(o, Perm)
     #     throw(ArgumentError("Cannot use StringRadixSort on type $(eltype(o.data))"))
@@ -62,8 +61,8 @@ function sort!(svec::AbstractVector{String}, lo::Int, hi::Int, ::StringRadixSort
     
     if lo >= hi;  return svec;  end
 
-    # find the maximum string length
-    lens = reduce((x,y) -> max(x,sizeof(y)),0, svec)
+    # find the maximum string length    
+    lens = maximum(sizeof, svec)
     skipbytes = lens
     while lens > 0
        if lens > 8
@@ -114,7 +113,9 @@ function sorttwo!(vs::AbstractVector{T}, index, lo::Int = 1, hi::Int=length(vs))
 
     # Init
     iters = ceil(Integer, sizeof(T)*8/RADIX_SIZE)
-    bin = zeros(UInt32, 2^RADIX_SIZE, iters)
+    # number of buckets in the counting step
+    nbuckets = 2^RADIX_SIZE
+    bin = zeros(UInt32, nbuckets, iters)
     if lo > 1;  bin[1,:] = lo-1;  end
 
     # Histogram for each element, radix
@@ -140,7 +141,14 @@ function sorttwo!(vs::AbstractVector{T}, index, lo::Int = 1, hi::Int=length(vs))
         # are all values the same at this radix?
         if bin[idx,j] == len;  continue;  end
 
-        cbin = cumsum(bin[:,j])
+        # cbin = cumsum(bin[:,j])
+        # tries to achieve the above one-liner with more efficiency
+        cbin = zeros(UInt32, nbuckets)
+        cbin[1] = bin[1,j]
+        for i in 2:nbuckets
+            cbin[i] = cbin[i-1] + bin[i,j]
+        end
+
         ci = cbin[idx]
         ts[ci] = vs[hi]
         index1[ci] = index[hi]
