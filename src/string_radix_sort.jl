@@ -12,66 +12,40 @@ If the `String` is shorter than 8 bytes then it's padded with 0.
 - `s`:          a `String`
 - `skipbytes`:  how many bytes to skip e.g. load_bits("abc", 1) will load "bc" as bits
 """
- # Some part of the return result should be padded with 0s.
+# Some part of the return result should be padded with 0s.
 # To prevent any possibility of segfault we load the bits using
 # successively smaller types
 # it is assumed that the type you are trying to load into needs padding
 # i.e. `remaining_bytes_to_load > 0`
-# load_bits_with_padding(::Type{UInt128}, s::String, skipbytes=0)= load_bits_with_padding(UInt128, s, skipbytes, [UInt64, UInt32, UInt16, UInt8])
-# load_bits_with_padding(::Type{UInt64}, s::String, skipbytes=0) = load_bits_with_padding(UInt64, s, skipbytes, [UInt32, UInt16, UInt8])
-# load_bits_with_padding(::Type{UInt32}, s::String, skipbytes=0) = load_bits_with_padding(UInt32, s, skipbytes, [UInt16, UInt8])
-
-# function load_bits_with_padding(::Type{T}, s::String, skipbytes, smaller_types) where T <: Unsigned    
-#     n = sizeof(s)
-
-#     ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
-#     remaining_bytes_to_load = sizeof(T) - ns÷8
-#     # start
-#     res = zero(T)
-#     shift_for_padding = sizeof(T)*8
-
-#     smaller_sizes = sizeof.(smaller_types)
-#     for (S, type_size) in zip(smaller_types, smaller_sizes)
-#         if  remaining_bytes_to_load >= type_size
-#             res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{S}(pointer(s, skipbytes+1))))) << (shift_for_padding - type_size*8)
-#             skipbytes += type_size
-#             remaining_bytes_to_load -= type_size
-#             shift_for_padding -= type_size*8
-#         end
-#     end
-#     return res
-# end
-
 function load_bits_with_padding(::Type{UInt128}, s::String, skipbytes = 0)  
     n = sizeof(s)
-    T = UInt128
-    ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
-    remaining_bytes_to_load = sizeof(T) - ns÷8
+    # T = UInt128
+    ns = (sizeof(UInt128) - min(sizeof(UInt128), n - skipbytes))*8
+    remaining_bytes_to_load = sizeof(UInt128) - ns÷8
     # start
-    res = zero(T)
-    shift_for_padding = sizeof(T)*8
+    res = zero(UInt128)
+    shift_for_padding = sizeof(UInt128)*8
 
-        
     if  remaining_bytes_to_load >= 8
-        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt64}(pointer(s, skipbytes+1))))) << (shift_for_padding - 8*8)
+        res |= Base.zext_int(UInt128, ntoh(unsafe_load(Ptr{UInt64}(pointer(s, skipbytes+1))))) << (shift_for_padding - 8*8)
         skipbytes += 8
         remaining_bytes_to_load -= 8
         shift_for_padding -= 8*8
     end
     if  remaining_bytes_to_load >= 4
-        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt32}(pointer(s, skipbytes+1))))) << (shift_for_padding - 4*8)
+        res |= Base.zext_int(UInt128, ntoh(unsafe_load(Ptr{UInt32}(pointer(s, skipbytes+1))))) << (shift_for_padding - 4*8)
         skipbytes += 4
         remaining_bytes_to_load -= 4
         shift_for_padding -= 4*8
     end
     if  remaining_bytes_to_load >= 2
-        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt16}(pointer(s, skipbytes+1))))) << (shift_for_padding - 2*8)
+        res |= Base.zext_int(UInt128, ntoh(unsafe_load(Ptr{UInt16}(pointer(s, skipbytes+1))))) << (shift_for_padding - 2*8)
         skipbytes += 2
         remaining_bytes_to_load -= 2
         shift_for_padding -= 2*8
     end
     if  remaining_bytes_to_load >= 1
-        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
+        res |= Base.zext_int(UInt128, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
         skipbytes += 1
         remaining_bytes_to_load -= 1
         shift_for_padding -= 1*8
@@ -199,33 +173,46 @@ function sort!(svec::AbstractVector{String}, lo::Int, hi::Int, ::StringRadixSort
     # end
     
     if lo >= hi;  return svec;  end
+    # the length subarray to sort
+    l = hi - lo + 1
 
     # find the maximum string length    
     lens = maximum(sizeof, svec)
     skipbytes = lens
-    while lens > 0
-       if lens > 8
+    if lens > 0
+        while lens > 8
             skipbytes = max(0, skipbytes - 16)
+            bits128 = zeros(UInt128, l)
             if o == Reverse
-                sorttwo!(.~load_bits.(UInt128, svec, skipbytes), svec)
+                bits128[lo:hi] .= .~load_bits.(UInt128, @view(svec[lo:hi]), skipbytes)
+                sorttwo!(bits128, svec, lo, hi)
             else
-                sorttwo!(load_bits.(UInt128, svec, skipbytes), svec)
+                bits128[lo:hi] .= load_bits.(UInt128, @view(svec[lo:hi]), skipbytes)
+                sorttwo!(bits128, svec, lo, hi)
             end
             lens -= 16
-        elseif lens > 4
+        end
+        if lens > 4
             skipbytes = max(0, skipbytes - 8)
+            bits64 = zeros(UInt64, l)
             if o == Reverse
-                sorttwo!(.~load_bits.(UInt64, svec, skipbytes), svec)
+                bits64[lo:hi] .= .~load_bits.(UInt64, @view(svec[lo:hi]), skipbytes)
+                sorttwo!(bits64, svec, lo, hi)
             else
-                sorttwo!(load_bits.(UInt64, svec, skipbytes), svec)
+                bits64[lo:hi] .= load_bits.(UInt64, @view(svec[lo:hi]), skipbytes)
+                sorttwo!(bits64, svec, lo, hi)
             end
             lens -= 8
-        else
+        end
+        if lens > 0
             skipbytes = max(0, skipbytes - 4)
+            bits32 = zeros(UInt32, l)
             if o == Reverse
-                sorttwo!(.~load_bits.(UInt32, svec, skipbytes), svec)
+                bits32[lo:hi] .= .~load_bits.(UInt32, @view(svec[lo:hi]), skipbytes)
+                sorttwo!(bits32, svec, lo, hi)
             else
-                sorttwo!(load_bits.(UInt32, svec, skipbytes), svec)
+                bits32[lo:hi] .= .~load_bits.(UInt32, @view(svec[lo:hi]), skipbytes)
+                sorttwo!(bits32, svec, lo, hi)
             end
             lens -= 4
         end
