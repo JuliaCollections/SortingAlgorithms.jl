@@ -1,6 +1,123 @@
 import Base: Forward, ForwardOrdering, Reverse, ReverseOrdering, Lexicographic, LexicographicOrdering, sortperm, Ordering, 
             setindex!, getindex, similar
-# import SortingAlgorithms: RadixSort, RadixSortAlg
+
+# create bits types for easy loading of bytes of lengths up to 15
+primitive type Bits24 24 end
+primitive type Bits40 40 end
+primitive type Bits48 48 end
+primitive type Bits56 56 end
+primitive type Bits72 72 end
+primitive type Bits80 80 end
+primitive type Bits88 88 end
+primitive type Bits96 96 end
+primitive type Bits104 104 end
+primitive type Bits112 112 end
+primitive type Bits120 120 end
+
+
+function load_bits_with_padding(::Type{UInt128}, s::String, skipbytes = 0)::UInt128
+    n = sizeof(s)
+
+    remaining_bytes_to_load = min(sizeof(s), n - skipbytes)
+    nbits_to_shift_away = 8(sizeof(UInt128) - remaining_bytes_to_load)
+
+    ptrs  = pointer(s) + skipbytes
+
+    # the below checks if the string is less than 8 bytes away from the page
+    # boundary assuming the page size is 4kb
+    # see https://discourse.julialang.org/t/is-there-a-way-to-check-how-far-away-a-pointer-is-from-a-page-boundary/8147/11?u=xiaodai
+    if (UInt(ptrs) & 0xfff) > 0xff8
+        if  remaining_bytes_to_load == 15
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits120}(ptrs))))
+        elseif  remaining_bytes_to_load == 14
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits112}(ptrs))))
+        elseif  remaining_bytes_to_load == 13
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits104}(ptrs))))
+        elseif  remaining_bytes_to_load == 12
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits96}(ptrs))))
+        elseif  remaining_bytes_to_load == 11
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits88}(ptrs))))
+        elseif  remaining_bytes_to_load == 10
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits80}(ptrs))))
+        elseif  remaining_bytes_to_load == 9
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits72}(ptrs))))
+        elseif  remaining_bytes_to_load == 8
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{UInt64}(ptrs))))
+        elseif  remaining_bytes_to_load == 7
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits56}(ptrs))))
+        elseif  remaining_bytes_to_load == 6
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits48}(ptrs))))
+        elseif  remaining_bytes_to_load == 5
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits40}(ptrs))))
+        elseif  remaining_bytes_to_load == 4
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{UInt32}(ptrs))))
+        elseif  remaining_bytes_to_load == 3
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{Bits24}(ptrs))))
+        elseif  remaining_bytes_to_load == 2
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{UInt16}(ptrs))))
+        else
+            return ntoh(Base.zext_int(UInt128, unsafe_load(Ptr{UInt8}(ptrs))))
+        end
+    else
+        return ntoh(unsafe_load(Ptr{UInt128}(ptrs))) >> nbits_to_shift_away << nbits_to_shift_away
+    end 
+end
+
+# these functions assumes that remaining_bytes_to_load > 0
+function load_bits_with_padding(::Type{UInt64}, s::String, skipbytes = 0)::UInt64
+    n = sizeof(s)
+
+    remaining_bytes_to_load = min(sizeof(s), n - skipbytes)
+    nbits_to_shift_away = 8(sizeof(UInt64) - remaining_bytes_to_load)
+
+    ptrs  = pointer(s) + skipbytes
+    # the below checks if the string is less than 8 bytes away from the page
+    # boundary assuming the page size is 4kb
+    # see https://discourse.julialang.org/t/is-there-a-way-to-check-how-far-away-a-pointer-is-from-a-page-boundary/8147/11?u=xiaodai
+    if (UInt(ptrs) & 0xfff) > 0xff8
+        if  remaining_bytes_to_load == 7
+            return ntoh(Base.zext_int(UInt, unsafe_load(Ptr{Bits56}(ptrs))))
+        elseif  remaining_bytes_to_load == 6
+            return ntoh(Base.zext_int(UInt, unsafe_load(Ptr{Bits48}(ptrs))))
+        elseif  remaining_bytes_to_load == 5
+            return ntoh(Base.zext_int(UInt, unsafe_load(Ptr{Bits40}(ptrs))))
+        elseif  remaining_bytes_to_load == 4
+            return ntoh(Base.zext_int(UInt, unsafe_load(Ptr{UInt}(ptrs))))
+        elseif  remaining_bytes_to_load == 3
+            return ntoh(Base.zext_int(UInt, unsafe_load(Ptr{Bits24}(ptrs))))
+        elseif  remaining_bytes_to_load == 2
+            return ntoh(Base.zext_int(UInt, unsafe_load(Ptr{UInt16}(ptrs))))
+        else
+            return ntoh(Base.zext_int(UInt, unsafe_load(Ptr{UInt8}(ptrs))))
+        end
+    else
+        return ntoh(unsafe_load(Ptr{UInt64}(ptrs))) >> nbits_to_shift_away << nbits_to_shift_away
+    end 
+end
+
+function load_bits_with_padding(::Type{UInt32}, s::String, skipbytes = 0)::UInt32
+    n = sizeof(s)
+
+    remaining_bytes_to_load = min(sizeof(s), n - skipbytes)
+    nbits_to_shift_away = 8(sizeof(UInt32) - remaining_bytes_to_load)
+
+    ptrs  = pointer(s) + skipbytes
+    # the below checks if the string is less than 8 bytes away from the page
+    # boundary assuming the page size is 4kb
+    # see https://discourse.julialang.org/t/is-there-a-way-to-check-how-far-away-a-pointer-is-from-a-page-boundary/8147/11?u=xiaodai
+    if (UInt(ptrs) & 0xfff) > 0xff8
+        if  remaining_bytes_to_load == 3
+            return ntoh(Base.zext_int(UInt, unsafe_load(Ptr{Bits24}(ptrs))))
+        elseif  remaining_bytes_to_load == 2
+            return ntoh(Base.zext_int(UInt, unsafe_load(Ptr{UInt16}(ptrs))))
+        else
+            return ntoh(Base.zext_int(UInt, unsafe_load(Ptr{UInt8}(ptrs))))
+        end
+    else
+        return ntoh(unsafe_load(Ptr{UInt32}(ptrs))) >> nbits_to_shift_away << nbits_to_shift_away
+    end 
+end
+
 """
     load_bits([type,] s, skipbytes)
 
@@ -17,119 +134,6 @@ If the `String` is shorter than 8 bytes then it's padded with 0.
 # successively smaller types
 # it is assumed that the type you are trying to load into needs padding
 # i.e. `remaining_bytes_to_load > 0`
-function load_bits_with_padding(::Type{UInt128}, s::String, skipbytes = 0)  
-    n = sizeof(s)
-    # T = UInt128
-    ns = (sizeof(UInt128) - min(sizeof(UInt128), n - skipbytes))*8
-    remaining_bytes_to_load = sizeof(UInt128) - ns÷8
-    # start
-    res = zero(UInt128)
-    shift_for_padding = sizeof(UInt128)*8
-
-    if  remaining_bytes_to_load >= 8
-        res |= Base.zext_int(UInt128, ntoh(unsafe_load(Ptr{UInt64}(pointer(s, skipbytes+1))))) << (shift_for_padding - 8*8)
-        skipbytes += 8
-        remaining_bytes_to_load -= 8
-        shift_for_padding -= 8*8
-    end
-    if  remaining_bytes_to_load >= 4
-        res |= Base.zext_int(UInt128, ntoh(unsafe_load(Ptr{UInt32}(pointer(s, skipbytes+1))))) << (shift_for_padding - 4*8)
-        skipbytes += 4
-        remaining_bytes_to_load -= 4
-        shift_for_padding -= 4*8
-    end
-    if  remaining_bytes_to_load >= 2
-        res |= Base.zext_int(UInt128, ntoh(unsafe_load(Ptr{UInt16}(pointer(s, skipbytes+1))))) << (shift_for_padding - 2*8)
-        skipbytes += 2
-        remaining_bytes_to_load -= 2
-        shift_for_padding -= 2*8
-    end
-    if  remaining_bytes_to_load >= 1
-        res |= Base.zext_int(UInt128, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
-        skipbytes += 1
-        remaining_bytes_to_load -= 1
-        shift_for_padding -= 1*8
-    end
-
-    return res
-end
-
-function load_bits_with_padding(::Type{UInt64}, s::String, skipbytes = 0)  
-    n = sizeof(s)
-    T = UInt64
-    ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
-    remaining_bytes_to_load = sizeof(T) - ns÷8
-    # start
-    res = zero(T)
-    shift_for_padding = sizeof(T)*8
-
-        
-    if  remaining_bytes_to_load >= 4
-        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt32}(pointer(s, skipbytes+1))))) << (shift_for_padding - 4*8)
-        skipbytes += 4
-        remaining_bytes_to_load -= 4
-        shift_for_padding -= 4*8
-    end
-    if  remaining_bytes_to_load >= 2
-        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt16}(pointer(s, skipbytes+1))))) << (shift_for_padding - 2*8)
-        skipbytes += 2
-        remaining_bytes_to_load -= 2
-        shift_for_padding -= 2*8
-    end
-    if  remaining_bytes_to_load >= 1
-        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
-        skipbytes += 1
-        remaining_bytes_to_load -= 1
-        shift_for_padding -= 1*8
-    end
-
-    return res
-end
-
-function load_bits_with_padding(::Type{UInt32}, s::String, skipbytes = 0)  
-    n = sizeof(s)
-    T = UInt32
-    ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
-    remaining_bytes_to_load = sizeof(T) - ns÷8
-    # start
-    res = zero(T)
-    shift_for_padding = sizeof(T)*8
-        
-    if  remaining_bytes_to_load >= 2
-        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt16}(pointer(s, skipbytes+1))))) << (shift_for_padding - 2*8)
-        skipbytes += 2
-        remaining_bytes_to_load -= 2
-        shift_for_padding -= 2*8
-    end
-    if  remaining_bytes_to_load >= 1
-        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
-        skipbytes += 1
-        remaining_bytes_to_load -= 1
-        shift_for_padding -= 1*8
-    end
-
-    return res
-end
-
-function load_bits_with_padding(::Type{UInt16}, s::String, skipbytes = 0)  
-    n = sizeof(s)
-    T = UInt16
-    ns = (sizeof(T) - min(sizeof(T), n - skipbytes))*8
-    remaining_bytes_to_load = sizeof(T) - ns÷8
-    # start
-    res = zero(T)
-    shift_for_padding = sizeof(T)*8
-        
-    if  remaining_bytes_to_load >= 1
-        res |= Base.zext_int(T, ntoh(unsafe_load(Ptr{UInt8}(pointer(s, skipbytes+1))))) << (shift_for_padding - 1*8)
-        skipbytes += 1
-        remaining_bytes_to_load -= 1
-        shift_for_padding -= 1*8
-    end
-
-    return res
-end
-
 function load_bits(::Type{T}, s::String, skipbytes = 0)::T where T <: Unsigned
     n = sizeof(s)
     if n < skipbytes
@@ -142,13 +146,12 @@ function load_bits(::Type{T}, s::String, skipbytes = 0)::T where T <: Unsigned
     return res
 end
 
-
 # Radix sort for strings
 function sort!(svec::AbstractVector{String}, ::StringRadixSortAlg, o::Perm)
     sort!(svec, 1, length(svec), StringRadixSort, o)
 end
 
-function sort!(svec::AbstractVector, lo::Int, hi::Int, ::StringRadixSortAlg, o::O) where O <: Union{ForwardOrdering, ReverseOrdering, LexicographicOrdering, Perm}
+function sort!(svec::AbstractVector, lo::Int, hi::Int, ::StringRadixSortAlg, o::O) where O <: Union{ForwardOrdering, ReverseOrdering, Perm}
     if isa(o, Perm)
         if eltype(o.data) != String
             throw(ArgumentError("Cannot use StringRadixSort on type $(eltype(o.data))"))
@@ -159,7 +162,7 @@ function sort!(svec::AbstractVector, lo::Int, hi::Int, ::StringRadixSortAlg, o::
     end
 end
 
-function sort!(svec::AbstractVector{String}, lo::Int, hi::Int, ::StringRadixSortAlg, o::O) where O <: Union{ForwardOrdering, ReverseOrdering, LexicographicOrdering}
+function sort!(svec::AbstractVector{String}, lo::Int, hi::Int, ::StringRadixSortAlg, o::O) where O <: Union{ForwardOrdering, ReverseOrdering}
     #  Input checking
     # this should never be the case where `o isa Perm` but the `svec`` is a string
     # if isa(o, Perm)
