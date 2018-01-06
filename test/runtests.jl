@@ -116,10 +116,22 @@ end
 
 # string sorting tests
 
-x = [randstring(32) for i = 1:1000];
+x = [randstring(rand(1:32)) for i = 1:1000];
 xsorted = sort(x, alg=StringRadixSort)
 @test issorted(xsorted)
 
-xx = copy(x)
+xsorted_rev = sort(x, alg=StringRadixSort, rev=true)
+@test issorted(xsorted_rev, rev=true)
+
 xsortedindex = sortperm(x, alg=StringRadixSort)
 @test issorted(x[xsortedindex])
+
+xsortedindex = sortperm(x, alg=StringRadixSort, rev=true)
+@test issorted(x[xsortedindex], rev=true)
+
+sort!(x, alg=StringRadixSort)
+@test issorted(x)
+
+x = [randstring(rand(1:32)) for i = 1:1000];
+sort!(x, alg=StringRadixSort, rev=true)
+@test issorted(x, rev=true)
