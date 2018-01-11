@@ -1,7 +1,10 @@
-using Base.Test
 using SortingAlgorithms
-using Compat
+using Compat, Compat.Test
 using StatsBase
+
+if !isdefined(Base, :invpermute!)
+    invpermute! = ipermute!
+end
 
 a = rand(1:10000, 1000)
 
@@ -31,7 +34,7 @@ for alg in [TimSort, HeapSort, RadixSort]
     permute!(c, ix)
     @test c == b
 
-    ipermute!(c, ix)
+    invpermute!(c, ix)
     @test c == a
 
     if alg != RadixSort  # RadixSort does not work with Lt orderings
@@ -70,7 +73,7 @@ for n in [0:10..., 100, 101, 1000, 1001]
         c = copy(v)
         permute!(c, pi)
         @test c == si
-        ipermute!(c, pi)
+        invpermute!(c, pi)
         @test c == v
 
         # stable algorithms
@@ -80,7 +83,7 @@ for n in [0:10..., 100, 101, 1000, 1001]
             s = copy(v)
             permute!(s, p)
             @test s == si
-            ipermute!(s, p)
+            invpermute!(s, p)
             @test s == v
         end
 
@@ -92,7 +95,7 @@ for n in [0:10..., 100, 101, 1000, 1001]
             s = copy(v)
             permute!(s, p)
             @test s == si
-            ipermute!(s, p)
+            invpermute!(s, p)
             @test s == v
         end
     end
