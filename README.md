@@ -11,6 +11,7 @@ The `SortingAlgorithms` package provides three sorting algorithms that can be us
 - [HeapSort] – an unstable, general purpose, in-place, O(n log n) comparison sort that works by heapifying an array and repeatedly taking the maximal element from the heap.
 - [TimSort] – a stable, general purpose, hybrid, O(n log n) comparison sort that adapts to different common patterns of partially ordered input data.
 - [RadixSort] – a stable, special case, in-place, O(n) non-comparison sort that works by sorting data with fixed size, one digit at a time.
+- [StringRadixSort] - a stable and signficantly faster O(n) non-comparison sort for strings that works by sorting the underlying bytes using radix sort. 
 
 [HeapSort]:  http://en.wikipedia.org/wiki/Heapsort
 [TimSort]:   http://en.wikipedia.org/wiki/Timsort
@@ -90,6 +91,10 @@ The `SortingAlgorithms` package provides three sorting algorithms that can be us
 	 "scientificophilosophical"
 	 "tetraiodophenolphthalein"
 	 "thyroparathyroidectomize"
+
+	julia> strings = [randstring(8) for i =1:1_000_000]
+	julia> sort!(strings, alg=StringRadixSort)
+	
 
 	julia> sort!(words, alg=RadixSort)
 	ERROR: Radix sort only sorts bits types (got ASCIIString)
