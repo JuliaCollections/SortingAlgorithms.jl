@@ -114,7 +114,9 @@ for n in [0:10..., 100, 101, 1000, 1001]
     end
 end
 
+########################
 # string sorting tests
+#######################
 
 x = [randstring(rand(1:32)) for i = 1:1000];
 xsorted = sort(x, alg=StringRadixSort)
@@ -135,3 +137,12 @@ sort!(x, alg=StringRadixSort)
 x = [randstring(rand(1:32)) for i = 1:1000];
 sort!(x, alg=StringRadixSort, rev=true)
 @test issorted(x, rev=true)
+
+# test short strings
+x = [randstring(4) for i = 1:1000];
+sort!(x, alg=StringRadixSort)
+@test issorted(x)
+
+x = [randstring(8) for i = 1:1000];
+sort!(x, alg=StringRadixSort)
+@test issorted(x)
