@@ -152,18 +152,6 @@ function sort!(svec::AbstractVector, lo::Int, hi::Int, ::StringRadixSortAlg, o::
 end
 
 function sort!(svec::AbstractVector{String}, lo::Int, hi::Int, ::StringRadixSortAlg, o::O) where O <: Union{ForwardOrdering, ReverseOrdering}
-    #  Input checking
-    # this should never be the case where `o isa Perm` but the `svec`` is a string
-    # if isa(o, Perm)
-    #     throw(ArgumentError("Cannot use StringRadixSort on type $(eltype(o.data))"))
-        # if eltype(o.data) != String
-        #     throw(ArgumentError("Cannot use StringRadixSort on type $(eltype(o.data))"))
-        # end
-        # o = o.order
-        # svec = o.data
-        # return
-    # end
-    
     if lo >= hi;  return svec;  end
     # the length subarray to sort
     l = hi - lo + 1
@@ -172,19 +160,19 @@ function sort!(svec::AbstractVector{String}, lo::Int, hi::Int, ::StringRadixSort
     lens = maximum(sizeof, svec)
     skipbytes = lens
     if lens > 0
-        while lens > 8
-            skipbytes = max(0, skipbytes - 16)
-            bits128 = zeros(UInt128, l)
-            if o == Reverse
-                bits128[lo:hi] .= .~load_bits.(UInt128, @view(svec[lo:hi]), skipbytes)
-                sorttwo!(bits128, svec, lo, hi)
-            else
-                bits128[lo:hi] .= load_bits.(UInt128, @view(svec[lo:hi]), skipbytes)
-                sorttwo!(bits128, svec, lo, hi)
-            end
-            lens -= 16
-        end
-        if lens > 4
+        # while lens > 8
+        #     skipbytes = max(0, skipbytes - 16)
+        #     bits128 = zeros(UInt128, l)
+        #     if o == Reverse
+        #         bits128[lo:hi] .= .~load_bits.(UInt128, @view(svec[lo:hi]), skipbytes)
+        #         sorttwo!(bits128, svec, lo, hi)
+        #     else
+        #         bits128[lo:hi] .= load_bits.(UInt128, @view(svec[lo:hi]), skipbytes)
+        #         sorttwo!(bits128, svec, lo, hi)
+        #     end
+        #     lens -= 16
+        # end
+        while lens > 4
             skipbytes = max(0, skipbytes - 8)
             bits64 = zeros(UInt64, l)
             if o == Reverse
@@ -203,7 +191,7 @@ function sort!(svec::AbstractVector{String}, lo::Int, hi::Int, ::StringRadixSort
                 bits32[lo:hi] .= .~load_bits.(UInt32, @view(svec[lo:hi]), skipbytes)
                 sorttwo!(bits32, svec, lo, hi)
             else
-                bits32[lo:hi] .= .~load_bits.(UInt32, @view(svec[lo:hi]), skipbytes)
+                bits32[lo:hi] .= load_bits.(UInt32, @view(svec[lo:hi]), skipbytes)
                 sorttwo!(bits32, svec, lo, hi)
             end
             lens -= 4
@@ -296,6 +284,13 @@ function sorttwo!(vs::AbstractVector{T}, index, lo::Int = 1, hi::Int=length(vs))
     end
     (vs, index)
 end
+
+"""
+    radixsort(svec, rev = false)
+"""
+radixsort(svec::Vector{String}, rev = false) = radixsort!(copy(svec), rev)
+radixsort!(svec::Vector{String}, rev =false) =  sort!(svec, 1, length(svec), StringRadixSort, Base.Forward)
+
 
 """
     sortperm_radixsort(svec, rev = nothing, order = Forward)
