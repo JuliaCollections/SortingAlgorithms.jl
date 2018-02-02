@@ -286,13 +286,6 @@ function sorttwo!(vs::AbstractVector{T}, index, lo::Int = 1, hi::Int=length(vs))
 end
 
 """
-    radixsort(svec, rev = false)
-"""
-radixsort(svec::Vector{String}, rev = false) = radixsort!(copy(svec), rev)
-radixsort!(svec::Vector{String}, rev =false) =  sort!(svec, 1, length(svec), StringRadixSort, Base.Forward)
-
-
-"""
     sortperm_radixsort(svec, rev = nothing, order = Forward)
 
 To return a `String` vector using LSD radixsort
