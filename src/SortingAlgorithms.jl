@@ -2,9 +2,7 @@ __precompile__()
 
 module SortingAlgorithms
 
-using Compat
 using DataStructures
-import Compat.view
 using Base.Sort
 using Base.Order
 
@@ -69,14 +67,14 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
 
     # Make sure we're sorting a bits type
     T = Base.Order.ordtype(o, vs)
-    if !isbits(T)
+    if !isbitstype(T)
         error("Radix sort only sorts bits types (got $T)")
     end
 
     # Init
     iters = ceil(Integer, sizeof(T)*8/RADIX_SIZE)
     bin = zeros(UInt32, 2^RADIX_SIZE, iters)
-    if lo > 1;  bin[1,:] = lo-1;  end
+    if lo > 1;  bin[1,:] .= lo-1;  end
 
     # Histogram for each element, radix
     for i = lo:hi
