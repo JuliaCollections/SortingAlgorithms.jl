@@ -52,7 +52,7 @@ function randn_with_nans(n,p)
     return v
 end
 
-srand(0xdeadbeef)
+Random.seed!(0xdeadbeef)
 
 for n in [0:10..., 100, 101, 1000, 1001]
     r = 1:10
