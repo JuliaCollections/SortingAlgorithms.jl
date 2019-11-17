@@ -42,27 +42,6 @@ end
 
 ## Radix sort
 
-struct PermElement{T}
-    x::T
-    i::Int
-end
-
-struct PermVector{V, P, T} <: AbstractVector{PermElement{T}}
-    v::V
-    perm::P
-end
-PermVector(v::AbstractVector{T}, perm::AbstractVector) where {T} =
-    PermVector{typeof(v), typeof(perm), T}(v, perm)
-
-Base.@propagate_inbounds Base.getindex(v::PermVector, i::Int) =
-    PermElement(v.v[i], v.perm[i])
-Base.@propagate_inbounds function Base.setindex!(v::PermVector, x::PermElement, i::Int)
-    v.v[i] = x.x
-    v.perm[i] = x.i
-    return x
-end
-Base.size(v::PermVector) = size(v.v)
-
 # Map a bits-type to an unsigned int, maintaining sort order
 uint_mapping(::ForwardOrdering, x::Unsigned) = x
 for (signedty, unsignedty) in ((Int8, UInt8), (Int16, UInt16), (Int32, UInt32), (Int64, UInt64), (Int128, UInt128))
@@ -71,18 +50,26 @@ for (signedty, unsignedty) in ((Int8, UInt8), (Int16, UInt16), (Int32, UInt32), 
 end
 uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(UInt32, ifelse(y < 0, ~y, xor(y, typemin(Int32)))))
 uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(UInt64, ifelse(y < 0, ~y, xor(y, typemin(Int64)))))
-uint_mapping(o::ForwardOrdering, x::PermElement) = uint_mapping(o, x.x)
 
 uint_mapping(rev::ReverseOrdering, x) = ~uint_mapping(rev.fwd, x)
 uint_mapping(::ReverseOrdering{ForwardOrdering}, x::Real) = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
 
 uint_mapping(o::By,   x     ) = uint_mapping(Forward, o.by(x))
+uint_mapping(o::Perm, x) = uint_mapping(o.order, x)
 uint_mapping(o::Lt,   x     ) = error("uint_mapping does not work with general Lt Orderings")
 
 const RADIX_SIZE = 11
 const RADIX_MASK = 0x7FF
 
 function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts=similar(vs))
+    if o isa Perm
+        dvs = copy(o.data)
+        dts = similar(dvs)
+    else
+        dvs = vs
+        dts = ts
+    end
+
     # Input checking
     if lo >= hi;  return vs;  end
 
@@ -99,7 +86,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
 
     # Histogram for each element, radix
     for i = lo:hi
-        v = uint_mapping(o, vs[i])
+        v = uint_mapping(o, dvs[i])
         for j = 1:iters
             idx = Int((v >> ((j-1)*RADIX_SIZE)) & RADIX_MASK) + 1
             @inbounds bin[idx,j] += 1
@@ -111,7 +98,7 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
     len = hi-lo+1
     for j = 1:iters
         # Unroll first data iteration, check for degenerate case
-        v = uint_mapping(o, vs[hi])
+        v = uint_mapping(o, dvs[hi])
         idx = Int((v >> ((j-1)*RADIX_SIZE)) & RADIX_MASK) + 1
 
         # are all values the same at this radix?
@@ -120,24 +107,29 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
         cbin = cumsum(bin[:,j])
         ci = cbin[idx]
         ts[ci] = vs[hi]
+        o isa Perm && (dts[ci] = dvs[hi])
         cbin[idx] -= 1
 
         # Finish the loop...
         @inbounds for i in hi-1:-1:lo
-            v = uint_mapping(o, vs[i])
+            v = uint_mapping(o, dvs[i])
             idx = Int((v >> ((j-1)*RADIX_SIZE)) & RADIX_MASK) + 1
             ci = cbin[idx]
             ts[ci] = vs[i]
+            o isa Perm && (dts[ci] = dvs[i])
             cbin[idx] -= 1
         end
         vs,ts = ts,vs
+        dvs,dts = dts,dvs
         swaps += 1
     end
 
     if isodd(swaps)
         vs,ts = ts,vs
+        dvs,dts = dts,dvs
         for i = lo:hi
             vs[i] = ts[i]
+            o isa Perm && (dvs[i] = dts[i])
         end
     end
     vs
@@ -146,12 +138,6 @@ end
 function Base.Sort.Float.fpsort!(v::AbstractVector, ::RadixSortAlg, o::Ordering)
     lo, hi = Base.Sort.Float.nans2end!(v,o)
     sort!(v, lo, hi, RadixSort, o)
-end
-
-function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Perm)
-    sort!(PermVector(o.data, vs), lo, hi, RadixSort, o.order,
-          PermVector(similar(o.data), similar(vs)))
-    return vs
 end
 
 
