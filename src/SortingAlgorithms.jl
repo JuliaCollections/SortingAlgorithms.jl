@@ -42,6 +42,27 @@ end
 
 ## Radix sort
 
+struct PermElement{T}
+    x::T
+    i::Int
+end
+
+struct PermVector{V, P, T} <: AbstractVector{PermElement{T}}
+    v::V
+    perm::P
+end
+PermVector(v::AbstractVector{T}, perm::AbstractVector) where {T} =
+    PermVector{typeof(v), typeof(perm), T}(v, perm)
+
+Base.@propagate_inbounds Base.getindex(v::PermVector, i::Int) =
+    PermElement(v.v[i], v.perm[i])
+Base.@propagate_inbounds function Base.setindex!(v::PermVector, x::PermElement, i::Int)
+    v.v[i] = x.x
+    v.perm[i] = x.i
+    return x
+end
+Base.size(v::PermVector) = size(v.v)
+
 # Map a bits-type to an unsigned int, maintaining sort order
 uint_mapping(::ForwardOrdering, x::Unsigned) = x
 for (signedty, unsignedty) in ((Int8, UInt8), (Int16, UInt16), (Int32, UInt32), (Int64, UInt64), (Int128, UInt128))
@@ -50,12 +71,12 @@ for (signedty, unsignedty) in ((Int8, UInt8), (Int16, UInt16), (Int32, UInt32), 
 end
 uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(UInt32, ifelse(y < 0, ~y, xor(y, typemin(Int32)))))
 uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(UInt64, ifelse(y < 0, ~y, xor(y, typemin(Int64)))))
+uint_mapping(o::ForwardOrdering, x::PermElement) = uint_mapping(o, x.x)
 
 uint_mapping(rev::ReverseOrdering, x) = ~uint_mapping(rev.fwd, x)
 uint_mapping(::ReverseOrdering{ForwardOrdering}, x::Real) = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
 
 uint_mapping(o::By,   x     ) = uint_mapping(Forward, o.by(x))
-uint_mapping(o::Perm, i::Int) = uint_mapping(o.order, o.data[i])
 uint_mapping(o::Lt,   x     ) = error("uint_mapping does not work with general Lt Orderings")
 
 const RADIX_SIZE = 11
@@ -125,6 +146,12 @@ end
 function Base.Sort.Float.fpsort!(v::AbstractVector, ::RadixSortAlg, o::Ordering)
     lo, hi = Base.Sort.Float.nans2end!(v,o)
     sort!(v, lo, hi, RadixSort, o)
+end
+
+function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Perm)
+    sort!(PermVector(o.data, vs), lo, hi, RadixSort, o.order,
+          PermVector(similar(o.data), similar(vs)))
+    return vs
 end
 
 
