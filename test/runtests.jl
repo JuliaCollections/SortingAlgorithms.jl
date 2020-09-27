@@ -3,9 +3,8 @@ using Test
 using StatsBase
 using Random
 
-a = rand(1:10000, 1000)
-
-for alg in [TimSort, HeapSort, RadixSort]
+for a in (rand(1:10000, 1000), rand(1:10000, 101_000)),
+    alg in [TimSort, HeapSort, RadixSort]
     b = sort(a, alg=alg)
     @test issorted(b)
     ix = sortperm(a, alg=alg)
@@ -54,7 +53,7 @@ end
 
 Random.seed!(0xdeadbeef)
 
-for n in [0:10..., 100, 101, 1000, 1001]
+for n in [0:10..., 100, 101, 1000, 1001, 100_001]
     r = 1:10
     v = rand(1:10,n)
     h = fit(Histogram, v, r)
