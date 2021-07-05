@@ -124,7 +124,7 @@ end
 
 function Base.Sort.Float.fpsort!(v::AbstractVector, ::RadixSortAlg, o::Ordering)
     @static if VERSION >= v"1.7.0-DEV"
-        lo, hi = Base.Sort.Float.specials2end!(v, o)
+        lo, hi = Base.Sort.Float.specials2end!(v, RadixSort, o)
     else
         lo, hi = Base.Sort.Float.nans2end!(v, o)
     end
