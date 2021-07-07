@@ -123,7 +123,11 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
 end
 
 function Base.Sort.Float.fpsort!(v::AbstractVector, ::RadixSortAlg, o::Ordering)
-    lo, hi = Base.Sort.Float.nans2end!(v,o)
+    @static if VERSION >= v"1.7.0-DEV"
+        lo, hi = Base.Sort.Float.specials2end!(v, RadixSort, o)
+    else
+        lo, hi = Base.Sort.Float.nans2end!(v, o)
+    end
     sort!(v, lo, hi, RadixSort, o)
 end
 
