@@ -61,7 +61,14 @@ uint_mapping(o::Lt,   x     ) = error("uint_mapping does not work with general L
 const RADIX_SIZE = 11
 const RADIX_MASK = 0x7FF
 
-function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts=similar(vs))
+function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts=similar(vs, 0))
+    # Fallback on small lists
+    if hi - lo < 2^RADIX_SIZE
+        return sort!(vs, lo, hi, Base.Sort.defalg(vs), o)
+    end
+
+    if length(ts) < length(vs); resize!(ts, length(vs)); end
+
     # Input checking
     if lo >= hi;  return vs;  end
 
