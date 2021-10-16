@@ -71,9 +71,6 @@ function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering
 
     if length(ts) < length(vs); resize!(ts, length(vs)); end
 
-    # Input checking
-    if lo >= hi;  return vs;  end
-
     # Make sure we're sorting a bits type
     T = Base.Order.ordtype(o, vs)
     if !isbitstype(T)
