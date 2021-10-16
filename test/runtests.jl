@@ -3,44 +3,44 @@ using Test
 using StatsBase
 using Random
 
-a = rand(1:10000, 2200)
+for a in [rand(1:10000, 2200), rand(1:10000, 1000)]
+    for alg in [TimSort, HeapSort, RadixSort]
+        b = sort(a, alg=alg)
+        @test issorted(b)
+        ix = sortperm(a, alg=alg)
+        b = a[ix]
+        @test issorted(b)
+        @test a[ix] == b
 
-for alg in [TimSort, HeapSort, RadixSort]
-    b = sort(a, alg=alg)
-    @test issorted(b)
-    ix = sortperm(a, alg=alg)
-    b = a[ix]
-    @test issorted(b)
-    @test a[ix] == b
+        b = sort(a, alg=alg, rev=true)
+        @test issorted(b, rev=true)
+        ix = sortperm(a, alg=alg, rev=true)
+        b = a[ix]
+        @test issorted(b, rev=true)
+        @test a[ix] == b
 
-    b = sort(a, alg=alg, rev=true)
-    @test issorted(b, rev=true)
-    ix = sortperm(a, alg=alg, rev=true)
-    b = a[ix]
-    @test issorted(b, rev=true)
-    @test a[ix] == b
+        b = sort(a, alg=alg, by=x->1/x)
+        @test issorted(b, by=x->1/x)
+        ix = sortperm(a, alg=alg, by=x->1/x)
+        b = a[ix]
+        @test issorted(b, by=x->1/x)
+        @test a[ix] == b
 
-    b = sort(a, alg=alg, by=x->1/x)
-    @test issorted(b, by=x->1/x)
-    ix = sortperm(a, alg=alg, by=x->1/x)
-    b = a[ix]
-    @test issorted(b, by=x->1/x)
-    @test a[ix] == b
+        c = copy(a)
+        permute!(c, ix)
+        @test c == b
 
-    c = copy(a)
-    permute!(c, ix)
-    @test c == b
+        invpermute!(c, ix)
+        @test c == a
 
-    invpermute!(c, ix)
-    @test c == a
+        if alg != RadixSort  # RadixSort does not work with Lt orderings
+            c = sort(a, alg=alg, lt=(>))
+            @test b == c
+        end
 
-    if alg != RadixSort  # RadixSort does not work with Lt orderings
-        c = sort(a, alg=alg, lt=(>))
+        c = sort(a, alg=alg, by=x->1/x)
         @test b == c
     end
-
-    c = sort(a, alg=alg, by=x->1/x)
-    @test b == c
 end
 
 randnans(n) = reinterpret(Float64,[rand(UInt64)|0x7ff8000000000000 for i=1:n])
