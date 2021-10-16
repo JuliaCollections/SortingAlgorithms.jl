@@ -62,7 +62,9 @@ const RADIX_SIZE = 11
 const RADIX_MASK = 0x7FF
 
 function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts=similar(vs, 0))
-    # Fallback on small lists
+    # Fallback to default algorithm for short vectors as radix sort is slower for them
+    # The threshold has been chosen because radix sort allocates an array of that size
+    # and validated by benchmarks
     if hi - lo < 2^RADIX_SIZE
         return sort!(vs, lo, hi, Base.Sort.defalg(vs), o)
     end
