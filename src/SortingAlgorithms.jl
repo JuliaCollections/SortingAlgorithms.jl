@@ -3,6 +3,7 @@ __precompile__()
 module SortingAlgorithms
 
 using DataStructures
+using OffsetArrays
 using Base.Sort
 using Base.Order
 
@@ -61,15 +62,34 @@ uint_mapping(o::Lt,   x     ) = error("uint_mapping does not work with general L
 const RADIX_SIZE = 11
 const RADIX_MASK = 0x7FF
 
-function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts=similar(vs, 0))
-    # Fallback to default algorithm for short vectors as radix sort is slower for them
-    # The threshold has been chosen because radix sort allocates an array of that size
-    # and validated by benchmarks
-    if hi - lo < 2^RADIX_SIZE
-        return sort!(vs, lo, hi, Base.Sort.defalg(vs), o)
-    end
+# Fallback to default algorithm for short vectors as radix sort is slower for them
+# The threshold has been chosen because radix sort allocates an array of that size
+# and validated by benchmarks
+const RADIX_SMALL_THRESHOLD = 2^RADIX_SIZE
 
-    if length(ts) < length(vs); resize!(ts, length(vs)); end
+
+function sort!(vs::AbstractVector, lo::Int, hi::Int, a::RadixSortAlg, o::Ordering)
+    if hi <= lo
+        vs
+    elseif hi - lo < RADIX_SMALL_THRESHOLD
+        sort!(vs, lo, hi, Base.Sort.defalg(vs), o)
+    else
+        _sort!(vs, lo, hi, a, o, similar(vs, lo:hi))
+    end
+end
+function sort!(vs::AbstractVector{T}, lo::Int, hi::Int, a::RadixSortAlg, o::Ordering, ts::AbstractVector{T}) where T
+    if hi <= lo
+        vs
+    elseif hi - lo < RADIX_SMALL_THRESHOLD
+        checkbounds(ts, lo:hi) # Consistently throw an error for insufficient ts.
+        sort!(vs, lo, hi, Base.Sort.defalg(vs), o)
+    else
+        _sort!(vs, lo, hi, a, o, ts)
+    end
+end
+function _sort!(vs::AbstractVector{T}, lo::Int, hi::Int, a::RadixSortAlg, o::Ordering, ts::AbstractVector{T}) where T
+    checkbounds(vs, lo:hi)
+    checkbounds(ts, lo:hi)
 
     # Make sure we're sorting a bits type
     T = Base.Order.ordtype(o, vs)
