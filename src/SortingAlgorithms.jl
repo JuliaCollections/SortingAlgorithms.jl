@@ -66,8 +66,6 @@ const RADIX_MASK = 0x7FF
 # The threshold has been chosen because radix sort allocates an array of that size
 # and validated by benchmarks
 const RADIX_SMALL_THRESHOLD = 2^RADIX_SIZE
-
-
 function sort!(vs::AbstractVector, lo::Int, hi::Int, a::RadixSortAlg, o::Ordering)
     if hi <= lo
         vs
