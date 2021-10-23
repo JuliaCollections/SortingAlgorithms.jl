@@ -90,13 +90,13 @@ function _sort!(vs::AbstractVector{T}, lo::Int, hi::Int, a::RadixSortAlg, o::Ord
     checkbounds(ts, lo:hi)
 
     # Make sure we're sorting a bits type
-    T = Base.Order.ordtype(o, vs)
-    if !isbitstype(T)
-        error("Radix sort only sorts bits types (got $T)")
+    U = Base.Order.ordtype(o, vs)
+    if !isbitstype(U)
+        error("Radix sort only sorts bits types (got $U)")
     end
 
     # Init
-    iters = ceil(Integer, sizeof(T)*8/RADIX_SIZE)
+    iters = ceil(Integer, sizeof(U)*8/RADIX_SIZE)
     bin = zeros(UInt32, 2^RADIX_SIZE, iters)
     if lo > 1;  bin[1,:] .= lo-1;  end
 
