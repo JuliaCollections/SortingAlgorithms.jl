@@ -41,6 +41,16 @@ for a in [rand(1:10000, 2200), rand(1:10000, 1000)]
         c = sort(a, alg=alg, by=x->1/x)
         @test b == c
     end
+    
+    @test_throws(
+        ErrorException("Radix sort only sorts bits types (got String)"),
+        sort(["world", "hello"], alg=RadixSort))
+    ts = rand(1:7, length(a))
+    @test issorted(sort!(copy(a), firstindex(a), lastindex(a), RadixSort, Forward, ts))
+    resize!(ts, length(a)-1)
+    @test_throws(
+        BoundsError(ts, (length(a),)), 
+        sort!(copy(a), firstindex(a), lastindex(a), RadixSort, Forward, ts))
 end
 
 randnans(n) = reinterpret(Float64,[rand(UInt64)|0x7ff8000000000000 for i=1:n])
