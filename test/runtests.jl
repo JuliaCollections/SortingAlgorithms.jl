@@ -1,3 +1,5 @@
+include("radix_runtests.jl")
+
 using SortingAlgorithms
 using Test
 using StatsBase
