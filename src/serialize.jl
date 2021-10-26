@@ -57,7 +57,7 @@ deserialize(::Type{T}, ::ForwardOrdering, u::Unsigned) where T <: Signed = xor(s
 serialized_type(::ForwardOrdering, T::Type{<:Union{Unsigned, Signed}}) = isbitstype(T) ? unsigned(T) : Nothing
 
 # Floats
-for (float, int) in ((Float16, Int16), (Float32, Int32), (Float64, Int64))
+for (float, int) in ((Float32, Int32), (Float64, Int64))
     @eval function serialize(::ForwardOrdering, x::$float)
         y = reinterpret($int, x)
         unsigned(y < 0 ? ~y : xor(y, typemin(y))) - ~reinterpret(unsigned($int), $float(-Inf))
@@ -87,11 +87,10 @@ serialized_type(order::ReverseOrdering, T::Type) where F = serialized_type(order
 
 ### Vectors
 """docstring"""
-function serialize!(us::AbstractVector{<:Unsigned}, order::Ordering, xs::AbstractVector)
-    i = firstindex(xs)
-    us[i] = mn = mx = serialize(order, xs[i])
-    limit = lastindex(xs)
-    while i < limit
+function serialize!(us::AbstractVector{<:Unsigned}, xs::AbstractVector, lo::Integer, hi::Integer, order::Ordering)
+    us[lo] = mn = mx = serialize(order, xs[lo])
+    i = lo # rename lo -> i for clarity only
+    while i < hi
         i += 1
 
         u = us[i] = serialize(order, xs[i])
@@ -104,19 +103,29 @@ function serialize!(us::AbstractVector{<:Unsigned}, order::Ordering, xs::Abstrac
     end
     us, mn, mx
 end
-serialize!(order::Ordering, xs::AbstractVector) =
-    serialize!(reinterpret(serialized_type(order, eltype(xs))), order, xs)
-serialize(order::ReverseOrdering, xs::AbstractVector) = # Disambiguate
-    serialize!(OffsetVector{serialized_type(order, eltype(xs))}(undef, axes(xs)),  order, xs)
-serialize(order::Ordering, xs::AbstractVector) =
-    serialize!(OffsetVector{serialized_type(order, eltype(xs))}(undef, axes(xs)),  order, xs)
+serialize!(xs::AbstractVector, lo::Integer, hi::Integer, order::Ordering) =
+    serialize!(reinterpret(serialized_type(order, eltype(xs))), xs, lo, hi, order)
+serialize(xs::AbstractVector, lo::Integer, hi::Integer, order::Ordering) =
+    serialize!(OffsetVector{serialized_type(order, eltype(xs))}(undef, axes(xs)), xs, lo, hi, order)
+
+compress!(us::AbstractVector, ::Nothing) = us
+compress!(us::AbstractVector{U}, min::U) where U <: Unsigned = us .-= min
 
 """docstring"""
-function deserialize!(T::Type, xs::AbstractVector, order::Ordering, us::AbstractVector{<:Unsigned})
-    map!(u -> deserialize(T, order, u), xs, us)
+function deserialize!(xs::AbstractVector, us::AbstractVector{<:Unsigned},
+    lo::Integer, hi::Integer, order::Ordering, compression::Nothing)
+    @inbounds for i in lo:hi
+        xs[i] = deserialize(eltype(xs), order, us[i])
+    end
+    xs
 end
-deserialize!(T::Type, order::Ordering, us::AbstractVector{<:Unsigned}) =
-    deserialize!(T, reinterpret(T, us), order, us)
+function deserialize!(xs::AbstractVector, us::AbstractVector{U},
+    lo::Integer, hi::Integer, order::Ordering, compression::U) where U <: Unsigned
+    @inbounds for i in lo:hi
+        xs[i] = deserialize(eltype(xs), order, us[i]+compression)
+    end
+    xs
+end
 
 
 
@@ -162,3 +171,14 @@ TODO in Base/sort.jl if we want to comap with it:
 #   a) idk
 #   +) easy for user to specialize serialize & supports eltype.
 #   -) mucking around
+
+#TODO integrate nan and missing filtration into vector serialization
+#(requires passing a new hi back from serialize!)
+
+# consider removing lo and hi in favor of view everywhere
+# (note however: https://github.com/JuliaLang/julia/issues/39864)
+# so for now we will pass lo and high everywhere :(
+# this is exactly what views are for.
+
+#TODO consider Float16, and deal with teh fact that scalar float serialization does not meet
+# docstring specs.

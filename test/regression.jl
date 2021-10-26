@@ -5,7 +5,7 @@ function evaluate(A, gen, V, L, bits, chunk, seconds=1, metric=minmedtime)
 
     o = @benchmark sort!(v; alg=$A) setup=(v=$gen()) evals=1 seconds=seconds
 
-    n = @benchmark (eltype(v)).(radix_sort!($V.(v), Vector{$V}(undef, length(v)),
+    n = @benchmark (eltype(v)).(old_radix_sort!($V.(v), Vector{$V}(undef, length(v)),
         $L(length(v)), UInt8($bits), $(UInt(unsigned(chunk))))) setup=(v=$gen()) evals=1 seconds=seconds
 
     metric(n) / metric(o)
@@ -25,7 +25,7 @@ result = [evaluate(t...) for t in trials]
 
 pass = result .<= standard
 
-all(pass) || println("rerunning $(count(.!pass)) regressions...")
+all(pass) || print("rerunning $(count(.!pass)) regressions... ")
 
 result0 = copy(result)
 result[.!pass] = [evaluate(t...) for t in trials[.!pass]]
@@ -33,8 +33,9 @@ result[.!pass] = [evaluate(t...) for t in trials[.!pass]]
 pass = result .<= standard
 
 let r = ceil.(min.(result, result0).*100_000)./100_000
-    all(pass) || println("$(count(.!pass)) failed.
-Lower the standards with: standard = $(max.(r, standard))")
+    println("$(count(.!pass)) failed.")
+    all(pass) || println("Lower the standards with: standard = $(max.(r, standard))")
+    println(r)
 end
 
 @testset "regression" begin
