@@ -74,8 +74,8 @@ deserialize(::Type{Bool}, ::ForwardOrdering, u::UInt8) = Bool(u)
 serialized_type(::ForwardOrdering, ::Type{Bool}) = UInt8
 
 # Chars
-serialize(::ForwardOrdering, x::Char) = UInt32(x)
-deserialize(::Type{Char}, ::ForwardOrdering, u::UInt32) = Char(u)
+serialize(::ForwardOrdering, x::Char) = reinterpret(UInt32, x)
+deserialize(::Type{Char}, ::ForwardOrdering, u::UInt32) = reinterpret(Char, u)
 serialized_type(::ForwardOrdering, ::Type{Char}) = UInt32
 
 
