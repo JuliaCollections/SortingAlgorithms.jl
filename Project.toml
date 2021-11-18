@@ -6,6 +6,7 @@ version = "1.0.1"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+SortMark = "15f864f9-903d-48fa-aa6c-47f5a1506de6"
 
 [compat]
 DataStructures = "0.9, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18"
