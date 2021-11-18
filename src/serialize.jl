@@ -3,22 +3,16 @@ using Base.Order
 
 
 """
-    serializable(order::Ordering, x)
+    Serializable(order::Ordering, T::Type)
 
-Wheather [`serialize`](@ref) and [`deserialize`](@ref) are implemented for the
-provided arguments. In the future, there may be an option for serializable but not
-deserializable
-"""
-serializable(order::Ordering, T::Type) = serialized_type(order, T) != Nothing
+Return `Some(typeof(serialize(o, ::T)))` if [`serialize`](@ref) and
+[`deserialize`](@ref) are implemented.
 
-"""
-    serialized_type(order::Ordering, T::Type)
+If either is not implemented, return nothing.
 
-The return type of [`serialize(o, x::T)`](@ref serialize) if `serialize` and
-[`deserialize`](@ref) are implemented for the provided arguments. If not, implemented,
-return Nothing.
+EXCEPTION: For containters, return the serialized element type.
 """
-serialized_type(order::Ordering, x::Type) = typeof(serialize(order, zero(x)))
+Serializable(order::Ordering, T::Type) = nothing
 
 """
     serialize(order::Ordering, x)::Unsigned
@@ -30,7 +24,8 @@ total for `a, b <: typeof(x)`. Satisfies
 `lt(order, a, b) === (serialize(order, a) < serialize(order, b))`
 and `x === deserialize(T, order, serialize(order, x::T))`
 
-EXCEPTION: scalar serialize fails on NaN edge cases. This is handled in vector serialize.
+NOTE: scalar serialize fails on NaN edge cases. This is handled in vector serialize.
+Consequently `Serialize(Float64) === nothing`.
 
 See also: [`serializable`](@ref) [`deserialize`](@ref)
 """
@@ -54,35 +49,48 @@ serialize(::ForwardOrdering, x::Unsigned) = x
 deserialize(::Type{T}, ::ForwardOrdering, u::T) where T <: Unsigned = u
 serialize(::ForwardOrdering, x::Signed) = unsigned(xor(x, typemin(x)))
 deserialize(::Type{T}, ::ForwardOrdering, u::Unsigned) where T <: Signed = xor(signed(u), typemin(T))
-serialized_type(::ForwardOrdering, T::Type{<:Union{Unsigned, Signed}}) = isbitstype(T) ? unsigned(T) : Nothing
+Serializable(::ForwardOrdering, T::Type{<:Union{Unsigned, Signed}}) = isbitstype(T) ? Some(unsigned(T)) : nothing
 
-# Floats
-for (float, int) in ((Float32, Int32), (Float64, Int64))
-    @eval function serialize(::ForwardOrdering, x::$float)
+# Floats are not Serializable under regular orderings because they fail on NaN edge cases.
+for (float, int) in ((Float16, Int16), (Float32, Int32), (Float64, Int64))
+    @eval function serialize(::Base.Sort.Float.Right, x::$float)
         y = reinterpret($int, x)
         unsigned(y < 0 ? ~y : xor(y, typemin(y))) - ~reinterpret(unsigned($int), $float(-Inf))
     end
-    @eval function deserialize(T::Type{$float}, ::ForwardOrdering, u::unsigned($int))
+    @eval function deserialize(T::Type{$float}, ::Base.Sort.Float.Right, u::unsigned($int))
         y = reinterpret($int, u + ~reinterpret(unsigned($int), $float(-Inf)))
         reinterpret(T, y < 0 ? xor(y, typemin(y)) : ~y)
     end
+    @eval Serializable(::Base.Sort.Float.Right, ::Type{$float}) = unsigned($int)
+
+    #This repetitive code is necessary because we have Base.Sort.Float.Left rather than
+    #Base.Order.ReverseOrdering{Base.Sort.Float.Right}.
+    @eval function serialize(::Base.Sort.Float.Left, x::$float)
+        y = reinterpret($int, x)
+        unsigned(y < 0 ? ~y : xor(y, typemin(y))) - ~reinterpret(unsigned($int), $float(-Inf))
+    end
+    @eval function deserialize(T::Type{$float}, ::Base.Sort.Float.Left, u::unsigned($int))
+        y = reinterpret($int, u + ~reinterpret(unsigned($int), $float(-Inf)))
+        reinterpret(T, y < 0 ? xor(y, typemin(y)) : ~y)
+    end
+    @eval Serializable(::Base.Sort.Float.Left, ::Type{$float}) = unsigned($int)
 end
 
 # Booleans
 serialize(::ForwardOrdering, x::Bool) = UInt8(x)
 deserialize(::Type{Bool}, ::ForwardOrdering, u::UInt8) = Bool(u)
-serialized_type(::ForwardOrdering, ::Type{Bool}) = UInt8
+Serializable(::ForwardOrdering, ::Type{Bool}) = UInt8
 
 # Chars
 serialize(::ForwardOrdering, x::Char) = reinterpret(UInt32, x)
 deserialize(::Type{Char}, ::ForwardOrdering, u::UInt32) = reinterpret(Char, u)
-serialized_type(::ForwardOrdering, ::Type{Char}) = UInt32
+Serializable(::ForwardOrdering, ::Type{Char}) = UInt32
 
 
 ### Reverse orderings
 serialize(rev::ReverseOrdering, x) = ~serialize(rev.fwd, x)
 deserialize(T::Type, rev::ReverseOrdering, u::Unsigned) = deserialize(T, rev.fwd, ~u)
-serialized_type(order::ReverseOrdering, T::Type) where F = serialized_type(order.fwd, T)
+Serializable(order::ReverseOrdering, T::Type) = Serializable(order.fwd, T)
 
 
 ### Vectors
@@ -103,10 +111,10 @@ function serialize!(us::AbstractVector{<:Unsigned}, xs::AbstractVector, lo::Inte
     end
     us, mn, mx
 end
-serialize!(xs::AbstractVector, lo::Integer, hi::Integer, order::Ordering) =
-    serialize!(reinterpret(serialized_type(order, eltype(xs))), xs, lo, hi, order)
-serialize(xs::AbstractVector, lo::Integer, hi::Integer, order::Ordering) =
-    serialize!(OffsetVector{serialized_type(order, eltype(xs))}(undef, axes(xs)), xs, lo, hi, order)
+serialize!(T::Type{<:Unsigned}, xs::AbstractVector, lo::Integer, hi::Integer, order::Ordering) =
+    serialize!(reinterpret(T, xs), xs, lo, hi, order)
+serialize(T::Type{<:Unsigned}, xs::AbstractVector, lo::Integer, hi::Integer, order::Ordering) =
+    serialize!(OffsetVector{T}(undef, axes(xs)), xs, lo, hi, order)
 
 compress!(us::AbstractVector, ::Nothing) = us
 compress!(us::AbstractVector{U}, min::U) where U <: Unsigned = us .-= min
@@ -127,6 +135,8 @@ function deserialize!(xs::AbstractVector, us::AbstractVector{U},
     xs
 end
 
+Serializable(order::Base.Order.ReverseOrdering, T::Type{<:AbstractVector}) = Serializable(order.fwd, eltype(T))
+Serializable(order::Ordering, T::Type{<:AbstractVector}) = Serializable(order, eltype(T))
 
 
 ### Notes
