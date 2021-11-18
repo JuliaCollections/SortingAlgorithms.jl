@@ -4,6 +4,7 @@ using Random: shuffle
 @testset "wrapped: quick" begin
     @test sort([3,1,2]) == sort([3,1,2], alg=RadixSort2)
     @test all(sort([NaN, -NaN]) .=== sort([NaN, -NaN], alg=RadixSort2))
+    @test sort!([NaN], order=Base.Order.Reverse, alg=RadixSort2) == [NaN]
     #@test all(sort(Float16[NaN, -NaN]) .=== sort(Float16[NaN, -NaN], alg=RadixSort2))
 end
 

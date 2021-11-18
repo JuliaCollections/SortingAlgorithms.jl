@@ -6,6 +6,8 @@ struct RadixSort2Alg <: Algorithm end # Not exported by base
 const RadixSort2 = RadixSort2Alg()    # Not exported by base
 
 function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::RadixSort2Alg, o::DirectOrdering)
+    lo < hi || return v
+
     us, mn, mx = serialize(v, lo, hi, o)
 
     compression, bits, chunk_size = heuristic(mn, mx, hi-lo+1)
