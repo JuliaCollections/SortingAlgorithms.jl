@@ -9,7 +9,7 @@ using Base.Order
 import Base.Sort: sort!
 import DataStructures: heapify!, percolate_down!
 
-export HeapSort, TimSort, RadixSort
+export HeapSort, TimSort, RadixSort, RadixSort2
 
 struct HeapSortAlg  <: Algorithm end
 struct TimSortAlg   <: Algorithm end
@@ -19,6 +19,9 @@ const HeapSort  = HeapSortAlg()
 const TimSort   = TimSortAlg()
 const RadixSort = RadixSortAlg()
 
+include("radix.jl")
+include("serialize.jl")
+include("radix_wrapper.jl")
 
 ## Heap sort
 
