@@ -7,7 +7,9 @@ using Random: shuffle
     @test isequal(sort!([NaN], order=Base.Order.Reverse, alg=RadixSort2), [NaN])
     @test sort!([reinterpret(Char, 0xc182274c), 'a'], alg=RadixSort2) == ['a', reinterpret(Char, 0xc182274c)]
     @test sort!(["world", "hello"], alg=RadixSort2) == ["hello", "world"]
-    #@test all(sort(Float16[NaN, -NaN]) .=== sort(Float16[NaN, -NaN], alg=RadixSort2))
+    x = vcat(Float16[NaN, -NaN], fill(0, 20))::Vector{Float16}
+    @test all(sort(x; alg=MergeSort) .=== sort(x; alg=RadixSort2))
+    @test_broken all(sort(x; alg=MergeSort) .=== sort(x))
 end
 
 @testset "wrapped: full" begin

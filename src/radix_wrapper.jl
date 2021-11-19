@@ -8,7 +8,8 @@ const RadixSort2 = RadixSort2Alg()    # Not exported by base
 function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::RadixSort2Alg, o::Ordering)
 
     T = Serializable(o, typeof(v))
-    T === nothing && return sort!(v, lo, hi, Base.Sort.defalg(v), o)
+    T === nothing && return sort!(v, lo, hi, MergeSort, o) # This has to be MergeSort rather
+    # than defalg because defalg is unstable: https://github.com/JuliaLang/julia/issues/42713
 
     lo < hi || return v
 
