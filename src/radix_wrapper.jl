@@ -19,7 +19,7 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::RadixSort2Alg, o::
 
     us = compress!(us, compression)
 
-    us = radix_sort!(us, similar(us, lo:hi), lo, hi, unsigned(bits), unsigned(chunk_size))
+    us = radix_sort!(us, similar(us, lo:hi), lo, hi, unsigned(bits), Val(UInt8(chunk_size)))
 
     deserialize!(v, us, lo, hi, o, compression)
 end
