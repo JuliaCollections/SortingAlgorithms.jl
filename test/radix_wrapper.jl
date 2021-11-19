@@ -5,7 +5,7 @@ using Random: shuffle
     @test sort([3,1,2]) == sort([3,1,2], alg=RadixSort2)
     @test all(sort([NaN, -NaN]) .=== sort([NaN, -NaN], alg=RadixSort2))
     @test isequal(sort!([NaN], order=Base.Order.Reverse, alg=RadixSort2), [NaN])
-    @test sort!([reinterpret(Char, 0xc182274c), 'a'], alg=RadixSort2) == ['a', reinterpret(Char, 0xc182274c)]
+    @test sort!([reinterpret(Char, 0xc1820000), 'a'], alg=RadixSort2) == ['a', reinterpret(Char, 0xc1820000)]
     @test sort!(["world", "hello"], alg=RadixSort2) == ["hello", "world"]
     x = vcat(Float16[NaN, -NaN], fill(0, 20))::Vector{Float16}
     @test all(sort(x; alg=MergeSort) .=== sort(x; alg=RadixSort2))
