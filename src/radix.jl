@@ -2,6 +2,7 @@ function radix_sort!(ps::AbstractVector{U}, ts::AbstractVector{U}, lo::Integer, 
     ::Val{CHUNK_SIZE}) where {U <: Unsigned, CHUNK_SIZE}
 
     bits == 0 && return ps
+    CHUNK_SIZE >= 63 && throw(ArgumentError("CHUNK_SIZE = $CHUNK_SIZE is too big, bucket size would be 2^$CHUNK_SIZE."))
 
     @inbounds begin
 
