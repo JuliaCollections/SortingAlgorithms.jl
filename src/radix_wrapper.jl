@@ -25,23 +25,6 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::RadixSort2Alg, o::
 end
 
 used_bits(x::Union{Signed, Unsigned}) = sizeof(x)*8 - leading_zeros(x)
-function time_est(iters::Integer, length::Integer, chunk::Integer, k1=1)
-    (k1*length + 2^chunk) * iters
-end
-function heuristic(bits, length)
-    t0 = time_est(bits, length, 1)
-    c0 = 0x0
-    for chunk in unsigned.(2:bits)
-        iters = ceil(Integer, bits/chunk)
-        chunk = unsigned(ceil(Integer, bits/iters))
-        if chunk != c0
-            t = time_est(iters, length, chunk)
-            t0 < t && return c0
-            t0, c0 = t, chunk
-        end
-    end
-    bits
-end
 function heuristic(mn, mx, length)
     if used_bits(mx-mn) < used_bits(mx)
         compression = mn
@@ -50,7 +33,13 @@ function heuristic(mn, mx, length)
         compression = nothing
         bits = used_bits(mx)
     end
-    compression, bits, heuristic(bits, length)
+
+    bits == 0 && return compression, bits, 0
+
+    guess = log(length)*3/4+3
+    chunk = Int(cld(bits, cld(bits, guess)))
+
+    compression, bits, chunk
 end
 
 function Base.Sort.Float.fpsort!(v::AbstractVector, a::RadixSort2Alg, o::Ordering)

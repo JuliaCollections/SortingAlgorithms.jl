@@ -5,8 +5,13 @@ version = "1.0.1"
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+LambertW = "984bce1d-4616-540c-a9ee-88d1112d94c9"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SortMark = "15f864f9-903d-48fa-aa6c-47f5a1506de6"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 DataStructures = "0.9, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18"
