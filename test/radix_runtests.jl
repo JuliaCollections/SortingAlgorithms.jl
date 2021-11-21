@@ -6,8 +6,6 @@ include("../test/common.jl")
 
 include("../test/radix_wrapper.jl")
 
-include("../test/lohi_patch.jl")
-
 include("../test/serialize.jl")
 include("../test/radix.jl")
 
