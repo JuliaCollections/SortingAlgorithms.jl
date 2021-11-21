@@ -1,6 +1,6 @@
 @testset "serialize: quick" begin
-    @test serialize(Forward, Int8[3,1,2]) == (UInt8[0x83, 0x81, 0x82], 0x81, 0x83)
-    @test deserialize!(Vector{Int}(undef, 3), Forward, first(serialize(Forward, [3,1,2]))) == [3,1,2]
+    @test serialize(UInt8, Int8[3,1,2], 1, 3, Forward) == (UInt8[0x83, 0x81, 0x82], 0x81, 0x83)
+    @test deserialize!(Vector{Int}(undef, 3), first(serialize(UInt, [3,1,2], 1, 3, Forward)), 1, 3, Forward, nothing) == [3,1,2]
 end
 
 @testset "serialize: full" begin
