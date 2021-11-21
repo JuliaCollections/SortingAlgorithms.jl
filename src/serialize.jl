@@ -103,11 +103,8 @@ function serialize!(us::AbstractVector{<:Unsigned}, xs::AbstractVector, lo::Inte
 
         u = us[i] = serialize(order, xs[i])
 
-        if u > mx
-            mx = u
-        elseif u < mn
-            mn = u
-        end
+        mx = max(u, mx)
+        mn = min(u, mn)
     end
     us, mn, mx
 end
