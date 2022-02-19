@@ -9,15 +9,32 @@ using Base.Order
 import Base.Sort: sort!
 import DataStructures: heapify!, percolate_down!
 
-export HeapSort, TimSort, RadixSort
+export HeapSort, TimSort, RadixSort, CombSort
 
 struct HeapSortAlg  <: Algorithm end
 struct TimSortAlg   <: Algorithm end
 struct RadixSortAlg <: Algorithm end
+struct CombSortAlg  <: Algorithm end
 
 const HeapSort  = HeapSortAlg()
 const TimSort   = TimSortAlg()
 const RadixSort = RadixSortAlg()
+"""
+    CombSort
+Indicates that a sorting function should use the comb sort
+algorithm. Comb sort traverses the collection multiple times
+ordering pairs of elements with a given interval between them.
+The interval decreases exponentially until it becomes 1, then
+it switches to insertion sort on the whole input.
+Characteristics:
+  * *not stable*: does not preserve the ordering of elements which
+    compare equal (e.g. "a" and "A" in a sort of letters which
+    ignores case).
+  * *in-place* in memory.
+  * *parallelizable* this algorithm is suitable for vectorization
+    because it performs many independent comparisons.
+"""
+const CombSort  = CombSortAlg()
 
 
 ## Heap sort
@@ -576,6 +593,38 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
         merge_at(o, v, state, n-1)
     end
     return v
+end
+
+# Especial ordering for CombSort
+ltminmax(o::ForwardOrdering,       a, b) = min(a,b), max(a,b)
+ltminmax(o::ReverseOrdering,       a, b) = max(a,b), min(a,b)
+ltminmax(o::By,                    a, b) = ifelse(isless(o.by(a),o.by(b)), a, b), ifelse(isless(o.by(a),o.by(b)), b, a)
+ltminmax(o::Lt,                    a, b) = ifelse(o.lt(a,b), a, b), ifelse(o.lt(a,b), b, a)
+ltminmax(o::Base.Sort.Float.Left,  a, b) = min(a,b), max(a,b)
+ltminmax(o::Base.Sort.Float.Right, a, b) = max(a,b), min(a,b)
+
+Base.@propagate_inbounds function ltminmax(p::Perm, a::Integer, b::Integer)
+    da = p.data[a]
+    db = p.data[b]
+    if (lt(p.order, da, db) | (!lt(p.order, db, da) & (a < b)))
+        (a, b)
+    else
+        (b, a)
+    end
+end
+
+# CombSort
+function sort!(v::AbstractVector, lo::Int, hi::Int, ::CombSortAlg, o::Ordering)
+    interval = (3 * (hi-lo+1)) >> 2
+
+    @inbounds while interval > 1
+        for j in lo:hi-interval
+            v[j], v[j+interval] = ltminmax(o, v[j], v[j+interval])
+        end
+        interval = (3 * interval) >> 2
+    end
+
+    return sort!(v, lo, hi, InsertionSort, o)
 end
 
 end # module
