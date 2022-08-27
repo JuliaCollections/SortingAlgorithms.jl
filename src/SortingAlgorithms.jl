@@ -618,7 +618,6 @@ Base.@propagate_inbounds function ltminmax(p::Perm, a::Integer, b::Integer)
     end
 end
 
-# CombSort
 function sort!(v::AbstractVector, lo::Int, hi::Int, ::CombSortAlg, o::Ordering)
     interval = (3 * (hi-lo+1)) >> 2
 
