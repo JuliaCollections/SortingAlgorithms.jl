@@ -606,7 +606,7 @@ ltminmax(o::Base.Sort.Float.Right, a, b) = max(a,b), min(a,b)
 Base.@propagate_inbounds function ltminmax(p::Perm, a::Integer, b::Integer)
     da = p.data[a]
     db = p.data[b]
-    if (lt(p.order, da, db) | (!lt(p.order, db, da) & (a < b)))
+    if lt(p.order, da, db) | !lt(p.order, db, da) & (a < b)
         (a, b)
     else
         (b, a)
