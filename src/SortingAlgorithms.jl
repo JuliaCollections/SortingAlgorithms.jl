@@ -22,18 +22,22 @@ const RadixSort = RadixSortAlg()
 
 """
     CombSort
+
 Indicates that a sorting function should use the comb sort
 algorithm. Comb sort traverses the collection multiple times
 ordering pairs of elements with a given interval between them.
 The interval decreases exponentially until it becomes 1, then
 it switches to insertion sort on the whole input.
 Characteristics:
-  * *not stable*: does not preserve the ordering of elements which
-    compare equal (e.g. "a" and "A" in a sort of letters which
-    ignores case).
-  * *in-place* in memory.
-  * *parallelizable* this algorithm is suitable for vectorization
-    because it performs many independent comparisons.
+ - *not stable*: does not preserve the ordering of elements which
+   compare equal (e.g. "a" and "A" in a sort of letters which
+   ignores case).
+ - *in-place* in memory.
+ - *parallelizable* this algorithm is suitable for vectorization
+   because it performs many independent comparisons.
+
+## References
+ - H. Inoue, T. Moriyama, H. Komatsu and T. Nakatani, "AA-Sort: A New Parallel Sorting Algorithm for Multi-Core SIMD Processors," 16th International Conference on Parallel Architecture and Compilation Techniques (PACT 2007), 2007, pp. 189-198, doi: 10.1109/PACT.2007.4336211.
 """
 const CombSort  = CombSortAlg()
 
