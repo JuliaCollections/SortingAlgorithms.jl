@@ -19,6 +19,7 @@ struct CombSortAlg  <: Algorithm end
 const HeapSort  = HeapSortAlg()
 const TimSort   = TimSortAlg()
 const RadixSort = RadixSortAlg()
+
 """
     CombSort
 Indicates that a sorting function should use the comb sort
