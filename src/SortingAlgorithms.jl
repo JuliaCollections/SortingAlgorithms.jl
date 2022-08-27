@@ -602,14 +602,13 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
     return v
 end
 
-ltminmax(o::Ordering, a, b) = lt(o, a, b) ? (a, b) : (b, a)
-
 function sort!(v::AbstractVector, lo::Int, hi::Int, ::CombSortAlg, o::Ordering)
     interval = (3 * (hi-lo+1)) >> 2
 
     @inbounds while interval > 1
         for j in lo:hi-interval
-            v[j], v[j+interval] = ltminmax(o, v[j], v[j+interval])
+            a, b = v[j], v[j+interval]
+            v[j], v[j+interval] = lt(o, a, b) ? (a, b) : (b, a)
         end
         interval = (3 * interval) >> 2
     end
