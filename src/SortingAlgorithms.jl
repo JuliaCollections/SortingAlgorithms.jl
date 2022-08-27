@@ -601,23 +601,7 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
     return v
 end
 
-# Especial ordering for CombSort
-ltminmax(o::ForwardOrdering,       a, b) = min(a,b), max(a,b)
-ltminmax(o::ReverseOrdering,       a, b) = max(a,b), min(a,b)
-ltminmax(o::By,                    a, b) = ifelse(isless(o.by(a),o.by(b)), a, b), ifelse(isless(o.by(a),o.by(b)), b, a)
-ltminmax(o::Lt,                    a, b) = ifelse(o.lt(a,b), a, b), ifelse(o.lt(a,b), b, a)
-ltminmax(o::Base.Sort.Float.Left,  a, b) = min(a,b), max(a,b)
-ltminmax(o::Base.Sort.Float.Right, a, b) = max(a,b), min(a,b)
-
-Base.@propagate_inbounds function ltminmax(p::Perm, a::Integer, b::Integer)
-    da = p.data[a]
-    db = p.data[b]
-    if lt(p.order, da, db) | !lt(p.order, db, da) & (a < b)
-        (a, b)
-    else
-        (b, a)
-    end
-end
+ltminmax(o::Ordering, a, b) = lt(o, a, b) ? (a, b) : (b, a)
 
 function sort!(v::AbstractVector, lo::Int, hi::Int, ::CombSortAlg, o::Ordering)
     interval = (3 * (hi-lo+1)) >> 2
