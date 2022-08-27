@@ -28,12 +28,13 @@ algorithm. Comb sort traverses the collection multiple times
 ordering pairs of elements with a given interval between them.
 The interval decreases exponentially until it becomes 1, then
 it switches to insertion sort on the whole input.
+
 Characteristics:
  - *not stable*: does not preserve the ordering of elements which
    compare equal (e.g. "a" and "A" in a sort of letters which
    ignores case).
  - *in-place* in memory.
- - *parallelizable* this algorithm is suitable for vectorization
+ - *parallelizable* suitable for vectorization with SIMD instructions
    because it performs many independent comparisons.
 
 ## References
