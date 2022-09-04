@@ -608,7 +608,7 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::CombSortAlg, o::Ordering)
     while interval > 1
         @inbounds for j in lo:hi-interval
             a, b = v[j], v[j+interval]
-            v[j], v[j+interval] = lt(o, a, b) ? (a, b) : (b, a)
+            v[j], v[j+interval] = lt(o, b, a) ? (b, a) : (a, b)
         end
         interval = (3 * interval) >> 2
     end
