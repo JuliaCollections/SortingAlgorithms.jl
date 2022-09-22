@@ -60,7 +60,7 @@ uint_mapping(o::Lt,   x     ) = error("uint_mapping does not work with general L
 
 const RADIX_SIZE = 11
 const RADIX_MASK = 0x7FF
-
+# bump
 function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts=similar(vs))
     # Input checking
     if lo >= hi;  return vs;  end
