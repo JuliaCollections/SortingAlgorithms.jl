@@ -51,6 +51,13 @@ end
 uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(UInt32, ifelse(y < 0, ~y, xor(y, typemin(Int32)))))
 uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(UInt64, ifelse(y < 0, ~y, xor(y, typemin(Int64)))))
 
+uint_mapping(::Sort.Float.Left, x::Float16)  = ~reinterpret(Int16, x)
+uint_mapping(::Sort.Float.Right, x::Float16)  = reinterpret(Int16, x)
+uint_mapping(::Sort.Float.Left, x::Float32)  = ~reinterpret(Int32, x)
+uint_mapping(::Sort.Float.Right, x::Float32)  = reinterpret(Int32, x)
+uint_mapping(::Sort.Float.Left, x::Float64)  = ~reinterpret(Int64, x)
+uint_mapping(::Sort.Float.Right, x::Float64)  = reinterpret(Int64, x)
+
 uint_mapping(rev::ReverseOrdering, x) = ~uint_mapping(rev.fwd, x)
 uint_mapping(::ReverseOrdering{ForwardOrdering}, x::Real) = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
 
@@ -61,18 +68,18 @@ uint_mapping(o::Lt,   x     ) = error("uint_mapping does not work with general L
 const RADIX_SIZE = 11
 const RADIX_MASK = 0x7FF
 
-function sort!(vs::AbstractVector, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts=similar(vs))
+function sort!(vs::AbstractVector{T}, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts::AbstractVector{T}=similar(vs)) where T
     # Input checking
     if lo >= hi;  return vs;  end
 
     # Make sure we're sorting a bits type
-    T = Base.Order.ordtype(o, vs)
-    if !isbitstype(T)
-        error("Radix sort only sorts bits types (got $T)")
+    OT = Base.Order.ordtype(o, vs)
+    if !isbitstype(OT)
+        error("Radix sort only sorts bits types (got $OT)")
     end
 
     # Init
-    iters = ceil(Integer, sizeof(T)*8/RADIX_SIZE)
+    iters = ceil(Integer, sizeof(OT)*8/RADIX_SIZE)
     bin = zeros(UInt32, 2^RADIX_SIZE, iters)
     if lo > 1;  bin[1,:] .= lo-1;  end
 
