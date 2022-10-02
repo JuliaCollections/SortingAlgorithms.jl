@@ -39,6 +39,7 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, a::HeapSortAlg, o::Ordering)
     v
 end
 
+Base.:+(x::Int, y::Int) = Int(Int128(x) + Int128(y))
 
 ## Radix sort
 
