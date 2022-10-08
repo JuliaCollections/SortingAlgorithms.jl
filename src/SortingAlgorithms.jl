@@ -36,7 +36,8 @@ Characteristics:
  - *in-place* in memory.
  - *parallelizable* suitable for vectorization with SIMD instructions
    because it performs many independent comparisons.
- - *complexity* worst-case only proven to be better than quadratic, but not `n*log(n)`.
+ - *pathological inputs* such as `repeat(1:5.0, 4^8)` can make this algorithm perform very poorly.
+ - *`n log n` average runtime* measured for random inputs of length up to 100 million, but theoretical runtime of `Θ(n^2)` for extremely long inputs.
 
 ## References
  - Werneck, N. L., (2020). "ChipSort: a SIMD and cache-aware sorting module. JuliaCon Proceedings, 1(1), 12, https://doi.org/10.21105/jcon.00012
