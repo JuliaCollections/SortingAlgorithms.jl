@@ -63,7 +63,8 @@ Characteristics:
 it performs many independent comparisons.
 
 ## References
-- Batcher, K.E., (1968). "Sorting networks and their applications", AFIPS '68, doi: https://doi.org/10.1145/1468075.1468121.
+- Batcher, K.E., "Sorting networks and their applications", AFIPS '68 (1968), doi: https://doi.org/10.1145/1468075.1468121.
+- "Bitonic Sorter", in "Wikipedia" (Oct 2022). https://en.wikipedia.org/wiki/Bitonic_sorter
 """
 const BitonicSort  = BitonicSortAlg()
 
@@ -646,7 +647,7 @@ end
 
 function bitonicsort!(data, o::Ordering)
     N = length(data)
-    for n in 1:ceil(Int, max(0, log2(N)))
+    for n in 1:intlog2(N)
         bitonicfirststage!(data, Val(n), o::Ordering)
         for m in n-1:-1:1
             bitonicsecondstage!(data, Val(m), o::Ordering)
@@ -689,5 +690,8 @@ function bitonicsecondstage!(v, ::Val{Gap}, o::Ordering) where Gap
         end
     end
 end
+
+intlog2(n) = (n > 1) ? 8sizeof(n-1)-leading_zeros(n-1) : 0
+
 
 end # module
