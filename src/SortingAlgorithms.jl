@@ -631,9 +631,8 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::CombSortAlg, o::Ordering)
     interval = (3 * (hi-lo+1)) >> 2
 
     while interval > 1
-        @inbounds for j in lo:hi-interval
-            a, b = v[j], v[j+interval]
-            v[j], v[j+interval] = lt(o, b, a) ? (b, a) : (a, b)
+        for j in lo:hi-interval
+            @inbounds comparator!(v, j, j+interval, o)
         end
         interval = (3 * interval) >> 2
     end
@@ -666,8 +665,7 @@ function bitonicfirststage!(v, ::Val{Gap}, o::Ordering) where Gap
             for j in firstj:(g2-1)
                 ia = i + j
                 ib = i + gap - j - 1
-                a, b = v[ia + 1], v[ib + 1]
-                v[ia+1], v[ib+1] = lt(o, b, a) ? (b, a) : (a, b)
+                @inbounds comparator!(v, ia + 1, ib + 1, o)
             end
         end
     end
@@ -683,8 +681,7 @@ function bitonicsecondstage!(v, ::Val{Gap}, o::Ordering) where Gap
                 for j in 0:lastj
                     ia = i + j
                     ib = i + j + gap >> 1
-                    a, b = v[ia + 1], v[ib + 1]
-                    v[ia+1], v[ib+1] = lt(o, b, a) ? (b, a) : (a, b)
+                    @inbounds comparator!(v, ia + 1, ib + 1, o)
                 end
             end
         end
@@ -693,5 +690,9 @@ end
 
 intlog2(n) = (n > 1) ? 8sizeof(n-1)-leading_zeros(n-1) : 0
 
+Base.@propagate_inbounds function comparator!(v, i, j, o)
+    a, b = v[i], v[j]
+    v[i], v[j] = lt(o, b, a) ? (b, a) : (a, b)
+end
 
 end # module
