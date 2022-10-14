@@ -655,33 +655,27 @@ end
 
 function bitonicfirststage!(v, ::Val{Gap}, o::Ordering) where Gap
     N = length(v)
-    @inbounds begin
-        gap = 1 << Gap
-        g2 = gap >> 1
-        for i in 0:gap:N-1
-            firstj = max(0, i + gap - N)
-            for j in firstj:(g2-1)
-                ia = i + j
-                ib = i + gap - j - 1
-                @inbounds comparator!(v, ia + 1, ib + 1, o)
-            end
+    gap = 1 << Gap
+    halfgap = 1 << (Gap - 1)
+    for i in 0:gap:N-1
+        firstj = max(0, i + gap - N)
+        for j in firstj:(halfgap-1)
+            ia = i + j
+            ib = i + gap - j - 1
+            @inbounds comparator!(v, ia + 1, ib + 1, o)
         end
     end
 end
 
 function bitonicsecondstage!(v, ::Val{Gap}, o::Ordering) where Gap
     N = length(v)
-    @inbounds begin
-        for n in Gap:-1:1
-            gap = 1 << n
-            for i in 0:gap:N-1
-                lastj = min(N - 1, N - (i + gap >> 1 + 1))
-                for j in 0:lastj
-                    ia = i + j
-                    ib = i + j + gap >> 1
-                    @inbounds comparator!(v, ia + 1, ib + 1, o)
-                end
-            end
+    gap = 1 << Gap
+    for i in 0:gap:N-1
+        lastj = min(N - 1, N - (i + gap >> 1 + 1))
+        for j in 0:lastj
+            ia = i + j
+            ib = i + j + gap >> 1
+            @inbounds comparator!(v, ia + 1, ib + 1, o)
         end
     end
 end
