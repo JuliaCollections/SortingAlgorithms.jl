@@ -9,12 +9,13 @@ using Base.Order
 import Base.Sort: sort!
 import DataStructures: heapify!, percolate_down!
 
-export HeapSort, TimSort, RadixSort, CombSort
+export HeapSort, TimSort, RadixSort, CombSort, BitonicSort
 
 struct HeapSortAlg  <: Algorithm end
 struct TimSortAlg   <: Algorithm end
 struct RadixSortAlg <: Algorithm end
 struct CombSortAlg  <: Algorithm end
+struct BitonicSortAlg  <: Algorithm end
 
 const HeapSort  = HeapSortAlg()
 const TimSort   = TimSortAlg()
@@ -45,6 +46,25 @@ Characteristics:
  - H. Inoue, T. Moriyama, H. Komatsu and T. Nakatani, "AA-Sort: A New Parallel Sorting Algorithm for Multi-Core SIMD Processors," 16th International Conference on Parallel Architecture and Compilation Techniques (PACT 2007), 2007, pp. 189-198, doi: 10.1109/PACT.2007.4336211.
 """
 const CombSort  = CombSortAlg()
+
+"""
+    BitonicSort
+
+Indicates that a sorting function should use the bitonic mergesort algorithm.
+This algorithm performs a series of pre-determined comparisons, and tends to be very parallelizable.
+The algorithm effectively implements a sorting network based on merging bitonic sequences.
+
+Characteristics:
+ - *not stable* does not preserve the ordering of elements which
+   compare equal (e.g. "a" and "A" in a sort of letters which
+   ignores case).
+ - *in-place* in memory.
+ - *parallelizable* suitable for vectorization with SIMD instructions because
+it performs many independent comparisons.
+
+See wikipedia.org/wiki/Bitonic_sorter for more information.
+"""
+const BitonicSort  = BitonicSortAlg()
 
 
 ## Heap sort
@@ -609,14 +629,62 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::CombSortAlg, o::Ordering)
     interval = (3 * (hi-lo+1)) >> 2
 
     while interval > 1
-        @inbounds for j in lo:hi-interval
-            a, b = v[j], v[j+interval]
-            v[j], v[j+interval] = lt(o, b, a) ? (b, a) : (a, b)
+        for j in lo:hi-interval
+            @inbounds comparator!(v, j, j+interval, o)
         end
         interval = (3 * interval) >> 2
     end
 
     return sort!(v, lo, hi, InsertionSort, o)
+end
+
+function sort!(v::AbstractVector, lo::Int, hi::Int, ::BitonicSortAlg, o::Ordering)
+    return bitonicsort!(view(v, lo:hi), o::Ordering)
+end
+
+function bitonicsort!(data, o::Ordering)
+    N = length(data)
+    for n in 1:intlog2(N)
+        bitonicfirststage!(data, Val(n), o::Ordering)
+        for m in n-1:-1:1
+            bitonicsecondstage!(data, Val(m), o::Ordering)
+        end
+    end
+    return data
+end
+
+function bitonicfirststage!(v, ::Val{Gap}, o::Ordering) where Gap
+    N = length(v)
+    gap = 1 << Gap
+    halfgap = 1 << (Gap - 1)
+    for i in 0:gap:N-1
+        firstj = max(0, i + gap - N)
+        for j in firstj:(halfgap-1)
+            ia = i + j
+            ib = i + gap - j - 1
+            @inbounds comparator!(v, ia + 1, ib + 1, o)
+        end
+    end
+end
+
+function bitonicsecondstage!(v, ::Val{Gap}, o::Ordering) where Gap
+    N = length(v)
+    gap = 1 << Gap
+    for i in 0:gap:N-1
+        lastj = min(N - 1, N - (i + gap >> 1 + 1))
+        for j in 0:lastj
+            ia = i + j
+            ib = i + j + gap >> 1
+            @inbounds comparator!(v, ia + 1, ib + 1, o)
+        end
+    end
+end
+
+intlog2(n) = (n > 1) ? 8sizeof(n-1)-leading_zeros(n-1) : 0
+
+Base.@propagate_inbounds function comparator!(v, i, j, o)
+    a, b = v[i], v[j]
+    v[i], v[j] = lt(o, b, a) ? (b, a) : (a, b)
 end
 
 end # module
