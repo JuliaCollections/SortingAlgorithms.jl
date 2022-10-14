@@ -62,9 +62,7 @@ Characteristics:
  - *parallelizable* suitable for vectorization with SIMD instructions because
 it performs many independent comparisons.
 
-## References
-- Batcher, K.E., "Sorting networks and their applications", AFIPS '68 (1968), doi: https://doi.org/10.1145/1468075.1468121.
-- "Bitonic Sorter", in "Wikipedia" (Oct 2022). https://en.wikipedia.org/wiki/Bitonic_sorter
+See wikipedia.org/wiki/Bitonic_sorter for more information.
 """
 const BitonicSort  = BitonicSortAlg()
 
