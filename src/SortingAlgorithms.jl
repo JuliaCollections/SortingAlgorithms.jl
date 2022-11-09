@@ -67,105 +67,6 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, a::HeapSortAlg, o::Ordering)
 end
 
 
-## Radix sort
-
-# Map a bits-type to an unsigned int, maintaining sort order
-uint_mapping(::ForwardOrdering, x::Unsigned) = x
-for (signedty, unsignedty) in ((Int8, UInt8), (Int16, UInt16), (Int32, UInt32), (Int64, UInt64), (Int128, UInt128))
-    # In Julia 0.4 we can just use unsigned() here
-    @eval uint_mapping(::ForwardOrdering, x::$signedty) = reinterpret($unsignedty, xor(x, typemin(typeof(x))))
-end
-uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(UInt32, ifelse(y < 0, ~y, xor(y, typemin(Int32)))))
-uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(UInt64, ifelse(y < 0, ~y, xor(y, typemin(Int64)))))
-
-uint_mapping(::Sort.Float.Left, x::Float16)  = ~reinterpret(Int16, x)
-uint_mapping(::Sort.Float.Right, x::Float16)  = reinterpret(Int16, x)
-uint_mapping(::Sort.Float.Left, x::Float32)  = ~reinterpret(Int32, x)
-uint_mapping(::Sort.Float.Right, x::Float32)  = reinterpret(Int32, x)
-uint_mapping(::Sort.Float.Left, x::Float64)  = ~reinterpret(Int64, x)
-uint_mapping(::Sort.Float.Right, x::Float64)  = reinterpret(Int64, x)
-
-uint_mapping(rev::ReverseOrdering, x) = ~uint_mapping(rev.fwd, x)
-uint_mapping(::ReverseOrdering{ForwardOrdering}, x::Real) = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
-
-uint_mapping(o::By,   x     ) = uint_mapping(Forward, o.by(x))
-uint_mapping(o::Perm, i::Int) = uint_mapping(o.order, o.data[i])
-uint_mapping(o::Lt,   x     ) = error("uint_mapping does not work with general Lt Orderings")
-
-const RADIX_SIZE = 11
-const RADIX_MASK = 0x7FF
-
-function sort!(vs::AbstractVector{T}, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts::AbstractVector{T}=similar(vs)) where T
-    # Input checking
-    if lo >= hi;  return vs;  end
-
-    # Make sure we're sorting a bits type
-    OT = Base.Order.ordtype(o, vs)
-    if !isbitstype(OT)
-        error("Radix sort only sorts bits types (got $OT)")
-    end
-
-    # Init
-    iters = ceil(Integer, sizeof(OT)*8/RADIX_SIZE)
-    bin = zeros(UInt32, 2^RADIX_SIZE, iters)
-    if lo > 1;  bin[1,:] .= lo-1;  end
-
-    # Histogram for each element, radix
-    for i = lo:hi
-        v = uint_mapping(o, vs[i])
-        for j = 1:iters
-            idx = Int((v >> ((j-1)*RADIX_SIZE)) & RADIX_MASK) + 1
-            @inbounds bin[idx,j] += 1
-        end
-    end
-
-    # Sort!
-    swaps = 0
-    len = hi-lo+1
-    for j = 1:iters
-        # Unroll first data iteration, check for degenerate case
-        v = uint_mapping(o, vs[hi])
-        idx = Int((v >> ((j-1)*RADIX_SIZE)) & RADIX_MASK) + 1
-
-        # are all values the same at this radix?
-        if bin[idx,j] == len;  continue;  end
-
-        cbin = cumsum(bin[:,j])
-        ci = cbin[idx]
-        ts[ci] = vs[hi]
-        cbin[idx] -= 1
-
-        # Finish the loop...
-        @inbounds for i in hi-1:-1:lo
-            v = uint_mapping(o, vs[i])
-            idx = Int((v >> ((j-1)*RADIX_SIZE)) & RADIX_MASK) + 1
-            ci = cbin[idx]
-            ts[ci] = vs[i]
-            cbin[idx] -= 1
-        end
-        vs,ts = ts,vs
-        swaps += 1
-    end
-
-    if isodd(swaps)
-        vs,ts = ts,vs
-        for i = lo:hi
-            vs[i] = ts[i]
-        end
-    end
-    vs
-end
-
-function Base.Sort.Float.fpsort!(v::AbstractVector, ::RadixSortAlg, o::Ordering)
-    @static if VERSION >= v"1.7.0-DEV"
-        lo, hi = Base.Sort.Float.specials2end!(v, RadixSort, o)
-    else
-        lo, hi = Base.Sort.Float.nans2end!(v, o)
-    end
-    sort!(v, lo, hi, RadixSort, o)
-end
-
-
 # Implementation of TimSort based on the algorithm description at:
 #
 #   http://svn.python.org/projects/python/trunk/Objects/listsort.txt
@@ -605,6 +506,7 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
     return v
 end
 
+
 function sort!(v::AbstractVector, lo::Int, hi::Int, ::CombSortAlg, o::Ordering)
     interval = (3 * (hi-lo+1)) >> 2
 
@@ -617,6 +519,111 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::CombSortAlg, o::Ordering)
     end
 
     return sort!(v, lo, hi, InsertionSort, o)
+end
+
+
+## Radix sort
+@static if VERSION >= v"1.9.0-DEV.482" # Base introduced radixsort in 1.9
+    function sort!(vs::AbstractVector{T}, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts::Union{Nothing, AbstractVector{T}}=nothing) where T
+        sort!(vs, lo, hi, Base.DEFAULT_STABLE, o, ts)
+    end
+else
+
+    # Map a bits-type to an unsigned int, maintaining sort order
+    uint_mapping(::ForwardOrdering, x::Unsigned) = x
+    for (signedty, unsignedty) in ((Int8, UInt8), (Int16, UInt16), (Int32, UInt32), (Int64, UInt64), (Int128, UInt128))
+        # In Julia 0.4 we can just use unsigned() here
+        @eval uint_mapping(::ForwardOrdering, x::$signedty) = reinterpret($unsignedty, xor(x, typemin(typeof(x))))
+    end
+    uint_mapping(::ForwardOrdering, x::Float32)  = (y = reinterpret(Int32, x); reinterpret(UInt32, ifelse(y < 0, ~y, xor(y, typemin(Int32)))))
+    uint_mapping(::ForwardOrdering, x::Float64)  = (y = reinterpret(Int64, x); reinterpret(UInt64, ifelse(y < 0, ~y, xor(y, typemin(Int64)))))
+
+    uint_mapping(::Sort.Float.Left, x::Float16)  = ~reinterpret(Int16, x)
+    uint_mapping(::Sort.Float.Right, x::Float16)  = reinterpret(Int16, x)
+    uint_mapping(::Sort.Float.Left, x::Float32)  = ~reinterpret(Int32, x)
+    uint_mapping(::Sort.Float.Right, x::Float32)  = reinterpret(Int32, x)
+    uint_mapping(::Sort.Float.Left, x::Float64)  = ~reinterpret(Int64, x)
+    uint_mapping(::Sort.Float.Right, x::Float64)  = reinterpret(Int64, x)
+
+    uint_mapping(rev::ReverseOrdering, x) = ~uint_mapping(rev.fwd, x)
+    uint_mapping(::ReverseOrdering{ForwardOrdering}, x::Real) = ~uint_mapping(Forward, x) # maybe unnecessary; needs benchmark
+
+    uint_mapping(o::By,   x     ) = uint_mapping(Forward, o.by(x))
+    uint_mapping(o::Perm, i::Int) = uint_mapping(o.order, o.data[i])
+    uint_mapping(o::Lt,   x     ) = error("uint_mapping does not work with general Lt Orderings")
+
+    const RADIX_SIZE = 11
+    const RADIX_MASK = 0x7FF
+
+    function sort!(vs::AbstractVector{T}, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts::AbstractVector{T}=similar(vs)) where T
+        # Input checking
+        if lo >= hi;  return vs;  end
+
+        # Make sure we're sorting a bits type
+        OT = Base.Order.ordtype(o, vs)
+        if !isbitstype(OT)
+            error("Radix sort only sorts bits types (got $OT)")
+        end
+
+        # Init
+        iters = ceil(Integer, sizeof(OT)*8/RADIX_SIZE)
+        bin = zeros(UInt32, 2^RADIX_SIZE, iters)
+        if lo > 1;  bin[1,:] .= lo-1;  end
+
+        # Histogram for each element, radix
+        for i = lo:hi
+            v = uint_mapping(o, vs[i])
+            for j = 1:iters
+                idx = Int((v >> ((j-1)*RADIX_SIZE)) & RADIX_MASK) + 1
+                @inbounds bin[idx,j] += 1
+            end
+        end
+
+        # Sort!
+        swaps = 0
+        len = hi-lo+1
+        for j = 1:iters
+            # Unroll first data iteration, check for degenerate case
+            v = uint_mapping(o, vs[hi])
+            idx = Int((v >> ((j-1)*RADIX_SIZE)) & RADIX_MASK) + 1
+
+            # are all values the same at this radix?
+            if bin[idx,j] == len;  continue;  end
+
+            cbin = cumsum(bin[:,j])
+            ci = cbin[idx]
+            ts[ci] = vs[hi]
+            cbin[idx] -= 1
+
+            # Finish the loop...
+            @inbounds for i in hi-1:-1:lo
+                v = uint_mapping(o, vs[i])
+                idx = Int((v >> ((j-1)*RADIX_SIZE)) & RADIX_MASK) + 1
+                ci = cbin[idx]
+                ts[ci] = vs[i]
+                cbin[idx] -= 1
+            end
+            vs,ts = ts,vs
+            swaps += 1
+        end
+
+        if isodd(swaps)
+            vs,ts = ts,vs
+            for i = lo:hi
+                vs[i] = ts[i]
+            end
+        end
+        vs
+    end
+
+    function Base.Sort.Float.fpsort!(v::AbstractVector, ::RadixSortAlg, o::Ordering)
+        @static if VERSION >= v"1.7.0-DEV"
+            lo, hi = Base.Sort.Float.specials2end!(v, RadixSort, o)
+        else
+            lo, hi = Base.Sort.Float.nans2end!(v, o)
+        end
+        sort!(v, lo, hi, RadixSort, o)
+    end
 end
 
 end # module
