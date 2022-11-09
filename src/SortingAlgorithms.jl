@@ -525,7 +525,7 @@ end
 ## Radix sort
 @static if VERSION >= v"1.9.0-DEV.482" # Base introduced radixsort in 1.9
     function sort!(vs::AbstractVector{T}, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts::Union{Nothing, AbstractVector{T}}=nothing) where T
-        sort!(vs, lo, hi, Base.DEFAULT_STABLE, o, ts)
+        sort!(vs, lo, hi, Base.DEFAULT_STABLE, o)
     end
 else
 
