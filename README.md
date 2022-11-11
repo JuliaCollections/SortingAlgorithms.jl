@@ -1,7 +1,8 @@
 # Sorting Algorithms
 
-  [![Build status](https://github.com/JuliaLang/SortingAlgorithms.jl/workflows/CI/badge.svg)](https://github.com/JuliaLang/SortingAlgorithms.jl/actions?query=workflow%3ACI+branch%3Amaster)
+[![Build status](https://github.com/JuliaLang/SortingAlgorithms.jl/workflows/CI/badge.svg)](https://github.com/JuliaLang/SortingAlgorithms.jl/actions?query=workflow%3ACI+branch%3Amaster)
 [![Coverage Status](https://coveralls.io/repos/JuliaLang/SortingAlgorithms.jl/badge.svg)](https://coveralls.io/r/JuliaLang/SortingAlgorithms.jl)
+[![deps](https://juliahub.com/docs/Tables/deps.svg)](https://juliahub.com/ui/Packages/Tables/Z804B?t=2)
 
 The `SortingAlgorithms` package provides three sorting algorithms that can be used with Julia's [standard sorting API](https://docs.julialang.org/en/v1/base/sort/):
 
@@ -124,3 +125,9 @@ The `SortingAlgorithms` package provides three sorting algorithms that can be us
 	  3.23942
 ```
 
+## Other packages that provide sorting algorithms
+
+While SortingAlgorithms.jl is the most widely used sorting package in the Julia ecosystem, other packages are available:
+- https://github.com/xiaodaigh/SortingLab.jl
+- https://github.com/JeffreySarnoff/SortingNetworks.jl
+- https://github.com/nlw0/ChipSort.jl
