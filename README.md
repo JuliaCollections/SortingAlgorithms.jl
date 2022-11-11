@@ -7,11 +7,11 @@ The `SortingAlgorithms` package provides three sorting algorithms that can be us
 
 - [HeapSort] – an unstable, general purpose, in-place, O(n log n) comparison sort that works by heapifying an array and repeatedly taking the maximal element from the heap.
 - [TimSort] – a stable, general purpose, hybrid, O(n log n) comparison sort that adapts to different common patterns of partially ordered input data.
-- [RadixSort] – a stable, special case, O(n) non-comparison sort that works by sorting data with fixed size, one digit at a time.
+- [CombSort] – an unstable, general purpose, in-place, O(n log n) comparison sort with O(n^2) pathological cases that is very efficient for primitieve types and orders due to SIMD instructions and instruction level paralellism on modern hardware.
 
-[HeapSort]:  http://en.wikipedia.org/wiki/Heapsort
-[TimSort]:   http://en.wikipedia.org/wiki/Timsort
-[RadixSort]: http://en.wikipedia.org/wiki/Radix_sort
+[HeapSort]: https://en.wikipedia.org/wiki/Heapsort
+[TimSort]:  https://en.wikipedia.org/wiki/Timsort
+[CombSort]: https://en.wikipedia.org/wiki/Comb_sort
 
 ## Usage
 
