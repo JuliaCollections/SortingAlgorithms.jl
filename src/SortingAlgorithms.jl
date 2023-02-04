@@ -16,9 +16,12 @@ struct TimSortAlg   <: Algorithm end
 struct RadixSortAlg <: Algorithm end
 struct CombSortAlg  <: Algorithm end
 
-const HeapSort  = HeapSortAlg()
-const TimSort   = TimSortAlg()
-const RadixSort = RadixSortAlg()
+function maybe_optimize(x::Algorithm) 
+    isdefined(Base.Sort, InitialOptimizations) ? Base.Sort.InitialOptimizations(x) : x
+end     
+const HeapSort  = maybe_optimize(HeapSortAlg())
+const TimSort   = maybe_optimize(TimSortAlg())
+const RadixSort = maybe_optimize(RadixSortAlg())
 
 """
     CombSort
