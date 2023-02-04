@@ -17,7 +17,7 @@ struct RadixSortAlg <: Algorithm end
 struct CombSortAlg  <: Algorithm end
 
 function maybe_optimize(x::Algorithm) 
-    isdefined(Base.Sort, InitialOptimizations) ? Base.Sort.InitialOptimizations(x) : x
+    isdefined(Base.Sort, :InitialOptimizations) ? Base.Sort.InitialOptimizations(x) : x
 end     
 const HeapSort  = maybe_optimize(HeapSortAlg())
 const TimSort   = maybe_optimize(TimSortAlg())
