@@ -21,7 +21,9 @@ function maybe_optimize(x::Algorithm)
 end     
 const HeapSort  = maybe_optimize(HeapSortAlg())
 const TimSort   = maybe_optimize(TimSortAlg())
-const RadixSort = maybe_optimize(RadixSortAlg())
+# Whenever InitialOptimizations is defined, RadixSort falls 
+# back to Base.DEFAULT_STABLE which already incldues them.
+const RadixSort = RadixSortAlg()
 
 """
     CombSort
