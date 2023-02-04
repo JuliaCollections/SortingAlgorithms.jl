@@ -103,13 +103,13 @@ for n in [0:10..., 100, 101, 1000, 1001]
         # test float sorting with NaNs
         s = sort(v, alg=alg, order=ord)
         @test issorted(s, order=ord)
-        @test reinterpret(UInt64, v[map(isnan, v)]) == reinterpret(UInt64, s[map(isnan, s)])
+        @test reinterpret(UInt64, v[map(isnan, v)]) == reinterpret(UInt64, s[map(isnan, s)]) #?
 
         # test float permutation with NaNs
         p = sortperm(v, alg=alg, order=ord)
         @test isperm(p)
         vp = v[p]
         @test isequal(vp,s)
-        @test reinterpret(UInt64,vp) == reinterpret(UInt64,s)
+        @test reinterpret(UInt64,vp) == reinterpret(UInt64,s) #?
     end
 end
