@@ -8,13 +8,16 @@ using Base.Order
 
 import Base.Sort: sort!
 import DataStructures: heapify!, percolate_down!
+import StaticArrays: MVector
 
-export HeapSort, TimSort, RadixSort, CombSort
+export HeapSort, TimSort, RadixSort, CombSort, PagedMergeSort, ThreadedPagedMergeSort
 
 struct HeapSortAlg  <: Algorithm end
 struct TimSortAlg   <: Algorithm end
 struct RadixSortAlg <: Algorithm end
 struct CombSortAlg  <: Algorithm end
+struct PagedMergeSortAlg  <: Algorithm end
+struct ThreadedPagedMergeSortAlg  <: Algorithm end
 
 function maybe_optimize(x::Algorithm) 
     isdefined(Base.Sort, :InitialOptimizations) ? Base.Sort.InitialOptimizations(x) : x
@@ -51,6 +54,52 @@ Characteristics:
 """
 const CombSort  = maybe_optimize(CombSortAlg())
 
+"""
+    PagedMergeSort
+
+Indicates that a sorting function should use the paged merge sort
+algorithm. Paged merge sort uses is a merge sort, that uses different
+merge routines to achieve stable sorting with a scratch space of size O(√n).
+The merge routine for merging large subarrays merges
+blocks/pages of size O(√n) almost in place, before reordering them using a page table.
+At deeper recursion levels, where the scratch space is big enough,
+normal merging is used, where one input is copied into the scratch space.
+When the scratch space is large enough to hold the complete subarray,
+the input is merged interleaved from both sides, which increases performance
+for random data.
+
+Characteristics:
+ - *stable* does preserve the ordering of elements which
+   compare equal (e.g. "a" and "A" in a sort of letters which
+   ignores case).
+ - *O(√n)* auxilary memory usage.
+ - *`O(n log n)` garuanteed runtime*.
+
+## References
+ - https://www.reddit.com/r/compsci/comments/qc95r7/merge_sort_with_osqrtn_auxiliary_memory/
+(Describes the basic idea, but uses another block reordering scheme.)
+"""
+const PagedMergeSort  = PagedMergeSortAlg()
+
+"""
+    ThreadedPagedMergeSort
+
+Multithreaded version of PagedMergeSort using Threads.nthreads-times the auxilary space.
+Uses multithreaded recursion (not multithreaded merging), so the maximum speedup is
+limited to O(log n)
+Characteristics:
+ - *stable* does preserve the ordering of elements which
+   compare equal (e.g. "a" and "A" in a sort of letters which
+   ignores case).
+ - *O(√n)* auxilary memory usage.
+ - *`O(n log n)` garuanteed runtime*.
+
+## References
+ - https://www.reddit.com/r/compsci/comments/qc95r7/merge_sort_with_osqrtn_auxiliary_memory/
+(Describes the basic idea, but uses another block reordering scheme.)
+ - https://en.wikipedia.org/wiki/Merge_sort#Merge_sort_with_parallel_recursion
+"""
+const ThreadedPagedMergeSort  = ThreadedPagedMergeSortAlg()
 
 ## Heap sort
 
@@ -631,4 +680,388 @@ else
     end
 end
 
+###
+# ThreadedPagedMergeSort
+###
+
+# merge v[lo:hiA] and v[hiA+1:hi] ([A;B])  using buffer t[1:1 + hi-lo]
+function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer, hi::Integer, hiA::Integer, o::Ordering) where T
+    @assert lo <= hiA <= hi
+    loA = lo
+    loB = hiA + 1
+    hiB = hi
+    
+    # output array indices 
+    oL = 1
+    oR = 1 + hi-lo
+    
+    # input array indices
+    iAL = loA
+    iBL = loB
+    iAR = hiA
+    iBR = hiB
+    
+    @inbounds begin
+        # two ended merge
+        while iAL < iAR && iBL < iBR
+            if lt(o,v[iBL], v[iAL])
+                t[oL] = v[iBL]
+                iBL += 1
+            else
+                t[oL] = v[iAL]
+                iAL += 1
+            end
+            oL +=1
+            
+            if lt(o,v[iAR], v[iBR])
+                t[oR] = v[iBR]
+                iBR -= 1
+            else
+                t[oR] = v[iAR]
+                iAR -= 1
+            end
+            oR -=1
+        end        
+        # cleanup
+        # regular merge
+        while iAL <= iAR && iBL <= iBR
+            if  lt(o,v[iBL], v[iAL])
+                t[oL] = v[iBL]
+                iBL += 1
+            else
+                t[oL] = v[iAL]
+                iAL += 1
+            end
+            oL += 1
+        end
+        # either A or B is empty -> copy remaining items
+        while iAL <= iAR
+            t[oL] = v[iAL]
+            iAL += 1
+            oL += 1
+        end
+        while iBL <= iBR
+            t[oL] = v[iBL]
+            iBL += 1
+            oL += 1
+        end
+        # copy back from t to v
+        offset = lo-1
+        len = 1 + hi - lo
+        @inbounds for i = 1:len
+            v[offset+i] = t[i]
+        end
+    end
+end
+
+# merge v[lo:lo+lenA-1] and v[lo+lenA:hi] using buffer t[1:lenA]
+# based on Base.Sort MergeSort
+function merge!(v::AbstractVector{T},t::AbstractVector{T}, lenA::Integer, lo::Integer, hi::Integer, o::Ordering) where T
+    @inbounds begin
+        i = 1
+        j = lo
+        while i <= lenA
+            t[i] = v[j]
+            i +=1
+            j +=1
+        end
+        iA = 1
+        k = lo
+        iB = lo + lenA
+        while k < iB <= hi
+            if lt(o,v[iB], t[iA])
+                v[k] = v[iB]
+                iB += 1
+            else
+                v[k] = t[iA]
+                iA += 1
+            end
+            k += 1
+        end
+        while iA <= lenA
+            v[k] = t[iA]
+            k += 1
+            iA += 1
+        end
+    end
+end
+
+# macro used for block management in pagedMerge!
+macro getNextBlock!()
+    quote
+        if iA > nextBlockA * blocksize + lo
+            currentBlock = nextBlockA
+            nextBlockA += 1                
+        else
+            currentBlock = nextBlockB
+            nextBlockB += 1
+        end
+        blockLocation[currentBlockIdx] = currentBlock
+        currentBlockIdx += 1
+    end |> esc
+end
+
+# merge v[lo:endA] and v[endA+1:hi] using buffer buf in O(sqrt(n)) space
+function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, endA::Integer, hi::Integer, blockLocation::AbstractVector{<:Integer}, o::Ordering) where T
+    @assert lo < endA < hi
+    iA = lo
+    iB = endA + 1
+    endB = hi    
+    lenA = endA + 1 - lo
+    lenB = endB - endA
+
+    # regular merge if buffer is big enough
+    if lenA <= length(buf)
+        merge!(v,buf,lenA,lo,hi,o)
+        return
+    elseif lenB <= length(buf)
+        # TODO ?
+        # does not occur in balanced mergesort where length(A) <= length(B)
+        error("not implemented")
+        return
+    end
+
+    len = hi + 1 - lo
+    blocksize = isqrt(len)
+    nBlocks = len ÷ blocksize
+    @assert length(buf) >= 3blocksize
+    @assert length(blockLocation) >= nBlocks+1
+
+    @inline getBlockOffset(block) = (block-1)*blocksize + lo - 1         
+
+    @inbounds begin 
+        ##################
+        # merge
+        ##################
+        # merge into buf until full
+        oBuf = 1
+        while oBuf <= 3blocksize    # cannot run out of input elements here
+            if lt(o, v[iB], v[iA])  # -> merge! would have been used
+                buf[oBuf] = v[iB]
+                iB += 1
+            else
+                buf[oBuf] = v[iA]
+                iA += 1
+            end
+            oBuf += 1
+        end
+
+        nextBlockA = 1
+        nextBlockB = (endA+blocksize-lo) ÷ blocksize + 1
+        blockLocation .= 0
+        blockLocation[1:3] = -1:-1:-3
+
+        oIdx = 1
+        currentBlock = 0
+        currentBlockIdx = 4
+        # more efficient loop while more than blocksize elements of A and B are remaining
+        while iA < endA-blocksize && iB < endB-blocksize
+            @getNextBlock!
+            offset = (currentBlock-1)*blocksize
+            oIdx = lo + offset
+            while oIdx <= blocksize+offset + lo - 1
+                if lt(o, v[iB], v[iA])
+                    v[oIdx] = v[iB]
+                    iB += 1
+                else
+                    v[oIdx] = v[iA]
+                    iA += 1
+                end
+                oIdx += 1
+            end
+        end
+        # merge until either A or B is empty
+        while iA <= endA && iB <= endB
+            @getNextBlock!
+            oIdx = 1
+            offset = getBlockOffset(currentBlock)
+            while oIdx <= blocksize && iA <= endA && iB <= endB
+                if lt(o, v[iB], v[iA])
+                    v[offset+oIdx] = v[iB]
+                    iB += 1
+                else
+                    v[offset+oIdx] = v[iA]
+                    iA += 1
+                end
+                oIdx += 1
+            end
+        end
+        # copy remaining elements
+        # either A or B is empty
+        # copy rest of A
+        while iA <= endA
+            if oIdx > blocksize
+                @getNextBlock!
+                oIdx = 1
+            end
+            offset = getBlockOffset(currentBlock)
+            while oIdx <= blocksize && iA <= endA
+                v[offset + oIdx] = v[iA]
+                iA += 1
+                oIdx += 1
+            end
+        end
+        # copy rest of B
+        while iB <= endB
+            if oIdx > blocksize
+                @getNextBlock!
+                oIdx = 1
+            end
+            offset = getBlockOffset(currentBlock)
+            while oIdx <= blocksize && iB <= endB
+                v[offset + oIdx] = v[iB]
+                iB += 1
+                oIdx += 1
+            end
+        end
+        # copy last partial block to end
+        partialBlockPresent = oIdx <= blocksize
+        if partialBlockPresent
+            offset = getBlockOffset(currentBlock)
+            offset2 = nBlocks*blocksize + lo - 1
+            for j = 1:oIdx-1
+                v[offset2 + j] = v[offset + j]
+            end
+            blockLocation[currentBlockIdx-1] = 0
+        end
+        #########################################
+        # calculate location of the 3 free blocks
+        #########################################
+        nFreeBlocksB = nBlocks + 1 - nextBlockB
+        nFreeBlocksA = 3 - nFreeBlocksB - Int(partialBlockPresent)
+        freeBlocks = MVector{3,Int}(undef)
+        i = 1
+        for j = 0:nFreeBlocksA-1
+            freeBlocks[i] = nextBlockA + j
+            i += 1
+        end
+        for j = 0:nFreeBlocksB-1
+            freeBlocks[i] = nextBlockB + j
+            i += 1
+        end
+        if partialBlockPresent
+            freeBlocks[i] = currentBlock
+        end       
+        freeBlocksIdx = 3
+        doneBlockIdx = 1
+        currentBlock = freeBlocks[end]
+        ##################
+        # rearrange blocks
+        ##################
+        while true
+            blc = blockLocation[currentBlock] # index of block with data belonging to currentBlock
+            if blc > 0
+                # data for currentBlock is in v                
+                offset = getBlockOffset(currentBlock)
+                offset2 = getBlockOffset(blc)
+                for j = 1:blocksize
+                    v[offset + j] = v[offset2 + j]
+                end
+                blockLocation[currentBlock] = 0
+                currentBlock = blc
+            else
+                # data for currentBlock is in buf
+                offset = getBlockOffset(currentBlock)
+                offset2 = (-blc-1)*blocksize
+                for j = 1:blocksize
+                    v[offset + j] = buf[offset2 + j]
+                end
+                blockLocation[currentBlock] = 0
+                if freeBlocksIdx > 1
+                    # get next free block
+                    freeBlocksIdx -= 1
+                    currentBlock = freeBlocks[freeBlocksIdx]
+                else
+                    # no free block remains
+                    # make sure that all blocks are done
+                    while blockLocation[doneBlockIdx] == 0 || blockLocation[doneBlockIdx] == doneBlockIdx
+                        doneBlockIdx += 1
+                        doneBlockIdx == nBlocks && return
+                    end
+                    # copy misplaced block into buf and continue        
+                    currentBlock = blockLocation[doneBlockIdx]
+                    offset = getBlockOffset(currentBlock)
+                    for j = 1:blocksize
+                        buf[j] = v[offset + j]
+                    end
+                    blockLocation[doneBlockIdx] = -1
+                end
+            end
+        end
+    end    
+end
+
+function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, buf::AbstractVector{T}, blockLocation, o=Base.Order.Forward) where T
+    len = hi + 1 -lo
+    if len <= Base.SMALL_THRESHOLD
+        Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
+        return
+    end
+    m = Base.midpoint(lo,hi)
+    pagedmergesort!(v,lo,m,buf,blockLocation,o)
+    pagedmergesort!(v,m+1,hi,buf,blockLocation,o)
+    if len <= length(buf)
+        twoended_merge!(v, buf, lo, hi, m,o)
+    else
+        pagedMerge!(v, buf, lo, m, hi, blockLocation, o)        
+    end
+end
+
+function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, bufs, blockLocations, c::Channel, threadingThreshold::Integer, o=Base.Order.Forward)       
+    len = hi + 1 -lo
+    if len <= Base.SMALL_THRESHOLD
+        Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
+        return
+    end
+    m = Base.midpoint(lo,hi)
+    if len > threadingThreshold
+        thr = Threads.@spawn threaded_pagedmergesort!(v,lo,m,bufs,blockLocations,c,threadingThreshold,o)
+        threaded_pagedmergesort!(v,m+1,hi,bufs,blockLocations,c,threadingThreshold,o)
+        wait(thr)
+        id = take!(c)
+        buf = bufs[id]
+        blockLocation = blockLocations[id]
+    else
+        id = take!(c)
+        buf = bufs[id]
+        blockLocation = blockLocations[id]
+        pagedmergesort!(v,lo,m,buf,blockLocation,o)
+        pagedmergesort!(v,m+1,hi,buf,blockLocation,o)
+    end
+    if len <= length(buf)
+        twoended_merge!(v, buf, lo, hi, m, o)
+    else
+        pagedMerge!(v, buf, lo, m, hi, blockLocation, o)        
+    end
+    put!(c,id)
+end
+
+const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
+
+function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::PagedMergeSortAlg, o::Ordering)
+    lo >= hi && return
+    n = hi + 1 - lo
+    blocksize = isqrt(n)
+    buf = Vector{eltype(v)}(undef,3blocksize)
+    nBlocks = n ÷ blocksize
+    blockLocation = Vector{Int}(undef,nBlocks+1)
+    pagedmergesort!(v,lo,hi,buf,blockLocation,o)
+end
+
+function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMergeSortAlg, o::Ordering)
+    lo >= hi && return
+    n = hi + 1 - lo
+    nThreads=Threads.nthreads()
+    (n < PAGEDMERGESORT_THREADING_THRESHOLD || nThreads < 2) && (sort!(v, lo, hi, PagedMergeSort, o); return)    
+    threadingThreshold = max(n ÷ 4nThreads, PAGEDMERGESORT_THREADING_THRESHOLD)
+    blocksize = isqrt(n)
+    nBlocks = n ÷ blocksize
+    bufs = [Vector{eltype(v)}(undef,3blocksize) for _ in 1:nThreads] # allocate buffer for each thread
+    blockLocation = [Vector{Int}(undef,nBlocks+1) for _ in 1:nThreads]
+    c = Channel{Int}(nThreads) # channel holds indices of available buffers
+    for i=1:nThreads
+        put!(c,i)
+    end
+    threaded_pagedmergesort!(v,lo,hi,bufs,blockLocation,c,threadingThreshold,o)
+end
 end # module
