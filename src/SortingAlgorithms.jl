@@ -1011,6 +1011,20 @@ function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, buf::Ab
     return v
 end
 
+const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
+
+function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::PagedMergeSortAlg, o::Ordering)
+    lo >= hi && return v
+    n = hi + 1 - lo
+    blocksize = isqrt(n)
+    buf = Vector{eltype(v)}(undef,3blocksize)
+    nBlocks = n ÷ blocksize
+    blockLocation = Vector{Int}(undef,nBlocks+1)
+    pagedmergesort!(v,lo,hi,buf,blockLocation,o)
+    return v
+end
+
+Base.@static if VERSION >= v"1.3"
 function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, bufs, blockLocations, c::Channel, threadingThreshold::Integer, o=Base.Order.Forward)       
     len = hi + 1 -lo
     if len <= Base.SMALL_THRESHOLD
@@ -1039,20 +1053,6 @@ function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, b
     put!(c,id)
     return v
 end
-
-const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
-
-function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::PagedMergeSortAlg, o::Ordering)
-    lo >= hi && return v
-    n = hi + 1 - lo
-    blocksize = isqrt(n)
-    buf = Vector{eltype(v)}(undef,3blocksize)
-    nBlocks = n ÷ blocksize
-    blockLocation = Vector{Int}(undef,nBlocks+1)
-    pagedmergesort!(v,lo,hi,buf,blockLocation,o)
-    return v
-end
-
 function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMergeSortAlg, o::Ordering)
     lo >= hi && return v
     n = hi + 1 - lo
@@ -1069,5 +1069,9 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMerg
     end
     threaded_pagedmergesort!(v,lo,hi,bufs,blockLocation,c,threadingThreshold,o)
     return v
+end
+else
+    # no multithreading in earlier versions -> use single threaded version instead
+    sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMergeSortAlg, o::Ordering) = sort!(v, lo, hi, PagedMergeSort, o)
 end
 end # module
