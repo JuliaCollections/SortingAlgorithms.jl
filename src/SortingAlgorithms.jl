@@ -71,8 +71,8 @@ Characteristics:
  - *`O(n log n)` garuanteed runtime*.
 
 ## References
- - https://www.reddit.com/r/compsci/comments/qc95r7/merge_sort_with_osqrtn_auxiliary_memory/
-(Describes the basic idea, but uses another block reordering scheme.)
+ - https://link.springer.com/chapter/10.1007/BFb0016253
+ - https://max-arbuzov.blogspot.com/2021/10/merge-sort-with-osqrtn-auxiliary-memory.html
 """
 const PagedMergeSort  = PagedMergeSortAlg()
 
@@ -90,8 +90,8 @@ Characteristics:
  - *`O(n log n)` garuanteed runtime*.
 
 ## References
- - https://www.reddit.com/r/compsci/comments/qc95r7/merge_sort_with_osqrtn_auxiliary_memory/
-(Describes the basic idea, but uses another block reordering scheme.)
+ - https://link.springer.com/chapter/10.1007/BFb0016253
+ - https://max-arbuzov.blogspot.com/2021/10/merge-sort-with-osqrtn-auxiliary-memory.html
  - https://en.wikipedia.org/wiki/Merge_sort#Merge_sort_with_parallel_recursion
 """
 const ThreadedPagedMergeSort  = ThreadedPagedMergeSortAlg()
