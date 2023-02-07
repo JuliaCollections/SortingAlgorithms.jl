@@ -994,8 +994,7 @@ end
 function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, buf::AbstractVector{T}, blockLocation, o=Base.Order.Forward) where T
     len = hi + 1 -lo
     if len <= Base.SMALL_THRESHOLD
-        Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
-        return
+        return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
     m = Base.midpoint(lo,hi)
     pagedmergesort!(v,lo,m,buf,blockLocation,o)
@@ -1005,13 +1004,13 @@ function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, buf::Ab
     else
         pagedMerge!(v, buf, lo, m, hi, blockLocation, o)        
     end
+    return v
 end
 
 function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, bufs, blockLocations, c::Channel, threadingThreshold::Integer, o=Base.Order.Forward)       
     len = hi + 1 -lo
     if len <= Base.SMALL_THRESHOLD
-        Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
-        return
+        return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
     m = Base.midpoint(lo,hi)
     if len > threadingThreshold
@@ -1034,25 +1033,27 @@ function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, b
         pagedMerge!(v, buf, lo, m, hi, blockLocation, o)        
     end
     put!(c,id)
+    return v
 end
 
 const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
 
 function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::PagedMergeSortAlg, o::Ordering)
-    lo >= hi && return
+    lo >= hi && return v
     n = hi + 1 - lo
     blocksize = isqrt(n)
     buf = Vector{eltype(v)}(undef,3blocksize)
     nBlocks = n ÷ blocksize
     blockLocation = Vector{Int}(undef,nBlocks+1)
     pagedmergesort!(v,lo,hi,buf,blockLocation,o)
+    return v
 end
 
 function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMergeSortAlg, o::Ordering)
-    lo >= hi && return
+    lo >= hi && return v
     n = hi + 1 - lo
     nThreads=Threads.nthreads()
-    (n < PAGEDMERGESORT_THREADING_THRESHOLD || nThreads < 2) && (sort!(v, lo, hi, PagedMergeSort, o); return)    
+    (n < PAGEDMERGESORT_THREADING_THRESHOLD || nThreads < 2) && return sort!(v, lo, hi, PagedMergeSort, o)
     threadingThreshold = max(n ÷ 4nThreads, PAGEDMERGESORT_THREADING_THRESHOLD)
     blocksize = isqrt(n)
     nBlocks = n ÷ blocksize
@@ -1063,5 +1064,6 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMerg
         put!(c,i)
     end
     threaded_pagedmergesort!(v,lo,hi,bufs,blockLocation,c,threadingThreshold,o)
+    return v
 end
 end # module
