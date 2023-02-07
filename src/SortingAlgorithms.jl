@@ -986,12 +986,16 @@ function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, 
     end    
 end
 
+# midpoint was added to Base.sort in version 1.4 and later moved to Base
+# -> redefine for compatibility with earlier versions
+_midpoint(lo::Integer,hi::Integer) = lo + ((hi - lo) >>> 0x01)
+
 function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, buf::AbstractVector{T}, blockLocation, o=Base.Order.Forward) where T
     len = hi + 1 -lo
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
-    m = Base.midpoint(lo,hi)
+    m = _midpoint(lo,hi)
     pagedmergesort!(v,lo,m,buf,blockLocation,o)
     pagedmergesort!(v,m+1,hi,buf,blockLocation,o)
     if len <= length(buf)
@@ -1007,7 +1011,7 @@ function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, b
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
-    m = Base.midpoint(lo,hi)
+    m = _midpoint(lo,hi)
     if len > threadingThreshold
         thr = Threads.@spawn threaded_pagedmergesort!(v,lo,m,bufs,blockLocations,c,threadingThreshold,o)
         threaded_pagedmergesort!(v,m+1,hi,bufs,blockLocations,c,threadingThreshold,o)
