@@ -680,22 +680,22 @@ end
 ###
 
 # merge v[lo:hiA] and v[hiA+1:hi] ([A;B])  using buffer t[1:1 + hi-lo]
-function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer, hi::Integer, hiA::Integer, o::Ordering) where T
+function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer, hiA::Integer, hi::Integer, o::Ordering) where T
     @assert lo <= hiA <= hi
     loA = lo
     loB = hiA + 1
     hiB = hi
-    
-    # output array indices 
+
+    # output array indices
     oL = 1
-    oR = 1 + hi-lo
-    
+    oR = 1 + hi - lo
+
     # input array indices
     iAL = loA
     iBL = loB
     iAR = hiA
     iBR = hiB
-    
+
     @inbounds begin
         # two ended merge
         while iAL < iAR && iBL < iBR
@@ -707,7 +707,7 @@ function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer
                 iAL += 1
             end
             oL +=1
-            
+
             if lt(o,v[iAR], v[iBR])
                 t[oR] = v[iBR]
                 iBR -= 1
@@ -716,7 +716,7 @@ function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer
                 iAR -= 1
             end
             oR -=1
-        end        
+        end
         # cleanup
         # regular merge
         while iAL <= iAR && iBL <= iBR
@@ -751,7 +751,7 @@ end
 
 # merge v[lo:lo+lenA-1] and v[lo+lenA:hi] using buffer t[1:lenA]
 # based on Base.Sort MergeSort
-function merge!(v::AbstractVector{T},t::AbstractVector{T}, lenA::Integer, lo::Integer, hi::Integer, o::Ordering) where T
+function merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer, hi::Integer, lenA::Integer, o::Ordering) where T
     @inbounds begin
         i = 1
         j = lo
@@ -782,11 +782,13 @@ function merge!(v::AbstractVector{T},t::AbstractVector{T}, lenA::Integer, lo::In
 end
 
 # macro used for block management in pagedMerge!
+# use next block in A (left subarray) if it is free,
+# otherwise use next block in B
 macro getNextBlock!()
     quote
         if iA > nextBlockA * blocksize + lo
             currentBlock = nextBlockA
-            nextBlockA += 1                
+            nextBlockA += 1
         else
             currentBlock = nextBlockB
             nextBlockB += 1
@@ -796,18 +798,18 @@ macro getNextBlock!()
     end |> esc
 end
 
-# merge v[lo:endA] and v[endA+1:hi] using buffer buf in O(sqrt(n)) space
-function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, endA::Integer, hi::Integer, blockLocation::AbstractVector{<:Integer}, o::Ordering) where T
-    @assert lo < endA < hi
+# merge v[lo:hiA] and v[hiA+1:hi] using buffer buf in O(sqrt(n)) space
+function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, hiA::Integer, hi::Integer, blockLocation::AbstractVector{<:Integer}, o::Ordering) where T
+    @assert lo < hiA < hi
     iA = lo
-    iB = endA + 1
-    endB = hi    
-    lenA = endA + 1 - lo
-    lenB = endB - endA
+    iB = hiA + 1
+    hiB = hi
+    lenA = hiA + 1 - lo
+    lenB = hiB - hiA
 
     # regular merge if buffer is big enough
     if lenA <= length(buf)
-        merge!(v,buf,lenA,lo,hi,o)
+        merge!(v, buf, lo, hi, lenA, o)
         return
     elseif lenB <= length(buf)
         # TODO ?
@@ -822,9 +824,9 @@ function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, 
     @assert length(buf) >= 3blocksize
     @assert length(blockLocation) >= nBlocks+1
 
-    @inline getBlockOffset(block) = (block-1)*blocksize + lo - 1         
+    @inline getBlockOffset(block) = (block-1)*blocksize + lo - 1
 
-    @inbounds begin 
+    @inbounds begin
         ##################
         # merge
         ##################
@@ -842,7 +844,7 @@ function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, 
         end
 
         nextBlockA = 1
-        nextBlockB = (endA+blocksize-lo) ÷ blocksize + 1
+        nextBlockB = (hiA+blocksize-lo) ÷ blocksize + 1
         blockLocation .= 0
         blockLocation[1:3] = -1:-1:-3
 
@@ -850,7 +852,7 @@ function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, 
         currentBlock = 0
         currentBlockIdx = 4
         # more efficient loop while more than blocksize elements of A and B are remaining
-        while iA < endA-blocksize && iB < endB-blocksize
+        while iA < hiA-blocksize && iB < hiB-blocksize
             @getNextBlock!
             offset = (currentBlock-1)*blocksize
             oIdx = lo + offset
@@ -866,11 +868,11 @@ function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, 
             end
         end
         # merge until either A or B is empty
-        while iA <= endA && iB <= endB
+        while iA <= hiA && iB <= hiB
             @getNextBlock!
             oIdx = 1
             offset = getBlockOffset(currentBlock)
-            while oIdx <= blocksize && iA <= endA && iB <= endB
+            while oIdx <= blocksize && iA <= hiA && iB <= hiB
                 if lt(o, v[iB], v[iA])
                     v[offset+oIdx] = v[iB]
                     iB += 1
@@ -884,26 +886,26 @@ function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, 
         # copy remaining elements
         # either A or B is empty
         # copy rest of A
-        while iA <= endA
+        while iA <= hiA
             if oIdx > blocksize
                 @getNextBlock!
                 oIdx = 1
             end
             offset = getBlockOffset(currentBlock)
-            while oIdx <= blocksize && iA <= endA
+            while oIdx <= blocksize && iA <= hiA
                 v[offset + oIdx] = v[iA]
                 iA += 1
                 oIdx += 1
             end
         end
         # copy rest of B
-        while iB <= endB
+        while iB <= hiB
             if oIdx > blocksize
                 @getNextBlock!
                 oIdx = 1
             end
             offset = getBlockOffset(currentBlock)
-            while oIdx <= blocksize && iB <= endB
+            while oIdx <= blocksize && iB <= hiB
                 v[offset + oIdx] = v[iB]
                 iB += 1
                 oIdx += 1
@@ -936,7 +938,7 @@ function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, 
         end
         if partialBlockPresent
             freeBlocks[i] = currentBlock
-        end       
+        end
         freeBlocksIdx = 3
         doneBlockIdx = 1
         currentBlock = freeBlocks[end]
@@ -946,7 +948,7 @@ function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, 
         while true
             blc = blockLocation[currentBlock] # index of block with data belonging to currentBlock
             if blc > 0
-                # data for currentBlock is in v                
+                # data for currentBlock is in v
                 offset = getBlockOffset(currentBlock)
                 offset2 = getBlockOffset(blc)
                 for j = 1:blocksize
@@ -973,7 +975,7 @@ function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, 
                         doneBlockIdx += 1
                         doneBlockIdx == nBlocks && return
                     end
-                    # copy misplaced block into buf and continue        
+                    # copy misplaced block into buf and continue
                     currentBlock = blockLocation[doneBlockIdx]
                     offset = getBlockOffset(currentBlock)
                     for j = 1:blocksize
@@ -983,52 +985,51 @@ function pagedMerge!(v::AbstractVector{T}, buf::AbstractVector{T}, lo::Integer, 
                 end
             end
         end
-    end    
+    end
 end
 
 # midpoint was added to Base.sort in version 1.4 and later moved to Base
 # -> redefine for compatibility with earlier versions
-_midpoint(lo::Integer,hi::Integer) = lo + ((hi - lo) >>> 0x01)
+_midpoint(lo::Integer, hi::Integer) = lo + ((hi - lo) >>> 0x01)
 
 function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, buf::AbstractVector{T}, blockLocation, o=Base.Order.Forward) where T
     len = hi + 1 -lo
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
-    m = _midpoint(lo,hi)
-    pagedmergesort!(v,lo,m,buf,blockLocation,o)
-    pagedmergesort!(v,m+1,hi,buf,blockLocation,o)
+    m = _midpoint(lo, hi)
+    pagedmergesort!(v, lo, m, buf, blockLocation, o)
+    pagedmergesort!(v, m+1, hi, buf, blockLocation, o)
     if len <= length(buf)
-        twoended_merge!(v, buf, lo, hi, m,o)
+        twoended_merge!(v, buf, lo, m, hi, o)
     else
-        pagedMerge!(v, buf, lo, m, hi, blockLocation, o)        
+        pagedMerge!(v, buf, lo, m, hi, blockLocation, o)
     end
     return v
 end
-
-const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
 
 function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::PagedMergeSortAlg, o::Ordering)
     lo >= hi && return v
     n = hi + 1 - lo
     blocksize = isqrt(n)
-    buf = Vector{eltype(v)}(undef,3blocksize)
+    buf = Vector{eltype(v)}(undef, 3blocksize)
     nBlocks = n ÷ blocksize
-    blockLocation = Vector{Int}(undef,nBlocks+1)
-    pagedmergesort!(v,lo,hi,buf,blockLocation,o)
+    blockLocation = Vector{Int}(undef, nBlocks+1)
+    pagedmergesort!(v, lo, hi, buf, blockLocation, o)
     return v
 end
 
 Base.@static if VERSION >= v"1.3"
-function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, bufs, blockLocations, c::Channel, threadingThreshold::Integer, o=Base.Order.Forward)       
+const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
+function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, bufs, blockLocations, c::Channel, threadingThreshold::Integer, o=Base.Order.Forward)
     len = hi + 1 -lo
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
-    m = _midpoint(lo,hi)
+    m = _midpoint(lo, hi)
     if len > threadingThreshold
-        thr = Threads.@spawn threaded_pagedmergesort!(v,lo,m,bufs,blockLocations,c,threadingThreshold,o)
-        threaded_pagedmergesort!(v,m+1,hi,bufs,blockLocations,c,threadingThreshold,o)
+        thr = Threads.@spawn threaded_pagedmergesort!(v, lo, m, bufs, blockLocations, c, threadingThreshold, o)
+        threaded_pagedmergesort!(v, m+1, hi, bufs, blockLocations, c, threadingThreshold, o)
         wait(thr)
         id = take!(c)
         buf = bufs[id]
@@ -1037,15 +1038,15 @@ function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, b
         id = take!(c)
         buf = bufs[id]
         blockLocation = blockLocations[id]
-        pagedmergesort!(v,lo,m,buf,blockLocation,o)
-        pagedmergesort!(v,m+1,hi,buf,blockLocation,o)
+        pagedmergesort!(v, lo,  m,  buf, blockLocation, o)
+        pagedmergesort!(v, m+1, hi, buf, blockLocation, o)
     end
     if len <= length(buf)
         twoended_merge!(v, buf, lo, hi, m, o)
     else
-        pagedMerge!(v, buf, lo, m, hi, blockLocation, o)        
+        pagedMerge!(v, buf, lo, m, hi, blockLocation, o)
     end
-    put!(c,id)
+    put!(c, id)
     return v
 end
 function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMergeSortAlg, o::Ordering)
@@ -1056,17 +1057,17 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMerg
     threadingThreshold = max(n ÷ 4nThreads, PAGEDMERGESORT_THREADING_THRESHOLD)
     blocksize = isqrt(n)
     nBlocks = n ÷ blocksize
-    bufs = [Vector{eltype(v)}(undef,3blocksize) for _ in 1:nThreads] # allocate buffer for each thread
-    blockLocation = [Vector{Int}(undef,nBlocks+1) for _ in 1:nThreads]
+    bufs = [Vector{eltype(v)}(undef, 3blocksize) for _ in 1:nThreads] # allocate buffer for each thread
+    blockLocation = [Vector{Int}(undef, nBlocks+1) for _ in 1:nThreads]
     c = Channel{Int}(nThreads) # channel holds indices of available buffers
     for i=1:nThreads
-        put!(c,i)
+        put!(c, i)
     end
-    threaded_pagedmergesort!(v,lo,hi,bufs,blockLocation,c,threadingThreshold,o)
+    threaded_pagedmergesort!(v, lo, hi, bufs, blockLocation, c, threadingThreshold, o)
     return v
 end
 else
-    # no multithreading in earlier versions -> use single threaded version instead
+    # use single threaded function when VERSION < v"1.3"
     sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMergeSortAlg, o::Ordering) = sort!(v, lo, hi, PagedMergeSort, o)
 end
 end # module
