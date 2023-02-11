@@ -710,6 +710,7 @@ function unguarded_insertion_sort!(v::AbstractVector, lo::Integer, hi::Integer, 
         end
         v[j] = x
     end
+    v
 end
 
 """
@@ -952,7 +953,6 @@ function partition_right!(v::AbstractVector, lo::Integer, hi::Integer, a::Branch
 
     end
     return pivot_position, was_already_partitioned
-
 end
 
 """
@@ -1007,7 +1007,6 @@ function partition_left!(v::AbstractVector, lo::Integer, hi::Integer, o::Orderin
         v[pivot_position] = pivot
     end
     return pivot_position
-    
 end
 
 # midpoint was added to Base.sort in version 1.4 and later moved to Base
@@ -1071,7 +1070,7 @@ function pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::PatternDe
             else
                 unguarded_insertion_sort!(v, lo, hi, o)
             end
-            return
+            return v
         end
         
         # Choose pivot as median of 3 or pseudomedian of 9.
@@ -1104,7 +1103,7 @@ function pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::PatternDe
             bad_allowed -= 1
             if bad_allowed == 0
                 sort!(v, lo, hi, SortingAlgorithms.HeapSort, o)
-                return
+                return v
             end
             
             if l_len > PDQ_SMALL_THRESHOLD
@@ -1136,7 +1135,7 @@ function pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::PatternDe
             if was_already_partitioned &&
                 partial_insertion_sort!(v, lo, pivot_pos, o) &&
                 partial_insertion_sort!(v, pivot_pos + 1, hi, o)
-                return
+                return v
             end
         end
         
