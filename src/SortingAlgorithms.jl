@@ -1067,7 +1067,7 @@ function pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::PatternDe
         # Insertion sort is faster for small arrays.
         if len < PDQ_SMALL_THRESHOLD
             if leftmost
-                Base.Sort._sort!(v, InsertionSort, o, (;lo, hi))
+                sort!(v, lo, hi, InsertionSort, o)
             else
                 unguarded_insertion_sort!(v, lo, hi, o)
             end
