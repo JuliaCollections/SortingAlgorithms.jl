@@ -103,6 +103,10 @@ for n in [0:10..., 100, 101, 1000, 1001]
         # test float sorting with NaNs
         s = sort(v, alg=alg, order=ord)
         @test issorted(s, order=ord)
+        
+        # This tests that NaNs (which compare equivalent) are treated stably 
+        # even when the underlying algorithm is unstable. That it happens to
+        # pass is not a part of the public API:
         @test reinterpret(UInt64, v[map(isnan, v)]) == reinterpret(UInt64, s[map(isnan, s)])
 
         # test float permutation with NaNs
