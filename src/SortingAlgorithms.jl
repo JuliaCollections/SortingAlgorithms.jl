@@ -995,7 +995,7 @@ end
 
 # midpoint was added to Base.sort in version 1.4 and later moved to Base
 # -> redefine for compatibility with earlier versions
-_midpoint(lo::Integer, hi::Integer) = lo + ((hi - lo) >>> 0x01)
+midpoint(lo::Integer, hi::Integer) = lo + ((hi - lo) >>> 0x01)
 
 function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, buf::AbstractVector{T}, blockLocation, o=Base.Order.Forward) where T
     len = hi + 1 -lo
