@@ -748,7 +748,7 @@ function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer
         # copy back from t to v
         offset = lo-1
         len = 1 + hi - lo
-        @inbounds for i = 1:len
+        for i = 1:len
             v[offset+i] = t[i]
         end
     end
