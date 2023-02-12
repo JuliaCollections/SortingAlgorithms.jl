@@ -1013,7 +1013,7 @@ function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, buf::Ab
     return v
 end
 
-function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::PagedMergeSortAlg, o::Ordering)
+function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::PagedMergeSortAlg, o::Ordering)
     lo >= hi && return v
     n = hi + 1 - lo
     blocksize = isqrt(n)
@@ -1054,7 +1054,7 @@ function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, b
     put!(c, id)
     return v
 end
-function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMergeSortAlg, o::Ordering)
+function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::ThreadedPagedMergeSortAlg, o::Ordering)
     lo >= hi && return v
     n = hi + 1 - lo
     nThreads=Threads.nthreads()
@@ -1073,6 +1073,6 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMerg
 end
 else
     # use single threaded function when VERSION < v"1.3"
-    sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMergeSortAlg, o::Ordering) = sort!(v, lo, hi, PagedMergeSort, o)
+    sort!(v::AbstractVector, lo::Integer, hi::Integer, ::ThreadedPagedMergeSortAlg, o::Ordering) = sort!(v, lo, hi, PagedMergeSort, o)
 end
 end # module
