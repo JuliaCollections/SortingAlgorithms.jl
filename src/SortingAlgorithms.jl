@@ -1002,7 +1002,7 @@ function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, buf::Ab
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
-    m = _midpoint(lo, hi)
+    m = midpoint(lo, hi)
     pagedmergesort!(v, lo, m, buf, blockLocation, o)
     pagedmergesort!(v, m+1, hi, buf, blockLocation, o)
     if len <= length(buf)
@@ -1031,7 +1031,7 @@ function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, b
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
-    m = _midpoint(lo, hi)
+    m = midpoint(lo, hi)
     if len > threadingThreshold
         thr = Threads.@spawn threaded_pagedmergesort!(v, lo, m, bufs, blockLocations, c, threadingThreshold, o)
         threaded_pagedmergesort!(v, m+1, hi, bufs, blockLocations, c, threadingThreshold, o)
