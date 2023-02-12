@@ -714,7 +714,7 @@ function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer
                 iAL += 1
             end
             oL +=1
-            if lt(o,v[iAR], v[iBR])
+            if !lt(o,v[iBR], v[iAR])
                 t[oR] = v[iBR]
                 iBR -= 1
             else
