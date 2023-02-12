@@ -685,6 +685,7 @@ end
 ###
 
 # merge v[lo:hiA] and v[hiA+1:hi] ([A;B])  using buffer t[1:1 + hi-lo]
+# this is faster than merge! but requires twice as much auxiliary memory.
 function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer, hiA::Integer, hi::Integer, o::Ordering) where T
     @assert lo <= hiA <= hi
     loA = lo
