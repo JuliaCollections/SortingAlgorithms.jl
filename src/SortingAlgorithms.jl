@@ -79,7 +79,7 @@ Characteristics:
  - https://link.springer.com/chapter/10.1007/BFb0016253
  - https://max-arbuzov.blogspot.com/2021/10/merge-sort-with-osqrtn-auxiliary-memory.html
 """
-const PagedMergeSort  = PagedMergeSortAlg()
+const PagedMergeSort  = maybe_optimize(PagedMergeSortAlg())
 
 """
     ThreadedPagedMergeSort
@@ -99,7 +99,7 @@ Characteristics:
  - https://max-arbuzov.blogspot.com/2021/10/merge-sort-with-osqrtn-auxiliary-memory.html
  - https://en.wikipedia.org/wiki/Merge_sort#Merge_sort_with_parallel_recursion
 """
-const ThreadedPagedMergeSort  = ThreadedPagedMergeSortAlg()
+const ThreadedPagedMergeSort  = maybe_optimize(ThreadedPagedMergeSortAlg())
 
 ## Heap sort
 
@@ -1058,7 +1058,7 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, a::ThreadedPagedMerg
     lo >= hi && return v
     n = hi + 1 - lo
     nThreads=Threads.nthreads()
-    (n < PAGEDMERGESORT_THREADING_THRESHOLD || nThreads < 2) && return sort!(v, lo, hi, PagedMergeSort, o)
+    (n < PAGEDMERGESORT_THREADING_THRESHOLD || nThreads < 2) && return sort!(v, lo, hi, PagedMergeSortAlg(), o)
     threadingThreshold = max(n ÷ 4nThreads, PAGEDMERGESORT_THREADING_THRESHOLD)
     blocksize = isqrt(n)
     nBlocks = n ÷ blocksize
