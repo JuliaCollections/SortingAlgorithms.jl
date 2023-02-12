@@ -999,11 +999,11 @@ end
 midpoint(lo::Integer, hi::Integer) = lo + ((hi - lo) >>> 0x01)
 
 function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, blockLocation) where T
-    len = hi + 1 -lo
+    len = hi + 1 - lo
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
-    m = midpoint(lo, hi)
+    m = midpoint(lo, hi-1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
     pagedmergesort!(v, lo, m, o, buf, blockLocation)
     pagedmergesort!(v, m+1, hi, o, buf, blockLocation)
     if len <= length(buf)
@@ -1032,7 +1032,7 @@ function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, o
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
-    m = midpoint(lo, hi)
+    m = midpoint(lo, hi-1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
     if len > threadingThreshold
         thr = Threads.@spawn threaded_pagedmergesort!(v, lo, m, o, bufs, blockLocations, c, threadingThreshold)
         threaded_pagedmergesort!(v, m+1, hi, o, bufs, blockLocations, c, threadingThreshold)
