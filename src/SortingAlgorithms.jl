@@ -703,6 +703,7 @@ function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer
 
     @inbounds begin
         # two ended merge
+        # while at least 2 elements remain in both A and B
         while iAL < iAR && iBL < iBR
             if lt(o,v[iBL], v[iAL])
                 t[oL] = v[iBL]
@@ -712,7 +713,6 @@ function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer
                 iAL += 1
             end
             oL +=1
-
             if lt(o,v[iAR], v[iBR])
                 t[oR] = v[iBR]
                 iBR -= 1
@@ -722,8 +722,8 @@ function twoended_merge!(v::AbstractVector{T}, t::AbstractVector{T}, lo::Integer
             end
             oR -=1
         end
-        # cleanup
         # regular merge
+        # until either A or B runs out
         while iAL <= iAR && iBL <= iBR
             if  lt(o,v[iBL], v[iAL])
                 t[oL] = v[iBL]
