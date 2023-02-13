@@ -681,70 +681,66 @@ else
 end
 
 ###
-# ThreadedPagedMergeSort
+# PagedMergeSort
 ###
 
-# merge v[lo:hiA] and v[hiA+1:hi] ([A;B])  using buffer t[1:1 + hi-lo]
+# merge v[lo:m] and v[m+1:hi] ([A;B])  using buffer t[1:1+hi-lo]
 # this is faster than merge! but requires twice as much auxiliary memory.
-function twoended_merge!(v::AbstractVector{T}, lo::Integer, hiA::Integer, hi::Integer, o::Ordering, t::AbstractVector{T}) where T
-    @assert lo <= hiA <= hi
-    loA = lo
-    loB = hiA + 1
-    hiB = hi
-
-    # output array indices
-    oL = 1
-    oR = 1 + hi - lo
+function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, t::AbstractVector{T}) where T
+    @assert lo <= m <= hi
 
     # input array indices
-    iAL = loA
-    iBL = loB
-    iAR = hiA
-    iBR = hiB
+    a_lo = lo
+    a_hi = m
+    b_lo = m + 1    
+    b_hi = hi
+    # output array indices
+    k_lo = 1
+    k_hi = 1 + hi - lo
 
     @inbounds begin
         # two ended merge
         # while at least 2 elements remain in both A and B
-        while iAL < iAR && iBL < iBR
-            if lt(o,v[iBL], v[iAL])
-                t[oL] = v[iBL]
-                iBL += 1
+        while a_lo < a_hi && b_lo < b_hi
+            if lt(o, v[b_lo], v[a_lo])
+                t[k_lo] = v[b_lo]
+                b_lo += 1
             else
-                t[oL] = v[iAL]
-                iAL += 1
+                t[k_lo] = v[a_lo]
+                a_lo += 1
             end
-            oL +=1
-            if !lt(o,v[iBR], v[iAR])
-                t[oR] = v[iBR]
-                iBR -= 1
+            k_lo +=1
+            if !lt(o, v[b_hi], v[a_hi])
+                t[k_hi] = v[b_hi]
+                b_hi -= 1
             else
-                t[oR] = v[iAR]
-                iAR -= 1
+                t[k_hi] = v[a_hi]
+                a_hi -= 1
             end
-            oR -=1
+            k_hi -=1
         end
         # regular merge
         # until either A or B runs out
-        while iAL <= iAR && iBL <= iBR
-            if  lt(o,v[iBL], v[iAL])
-                t[oL] = v[iBL]
-                iBL += 1
+        while a_lo <= a_hi && b_lo <= b_hi
+            if  lt(o, v[b_lo], v[a_lo])
+                t[k_lo] = v[b_lo]
+                b_lo += 1
             else
-                t[oL] = v[iAL]
-                iAL += 1
+                t[k_lo] = v[a_lo]
+                a_lo += 1
             end
-            oL += 1
+            k_lo += 1
         end
         # either A or B is empty -> copy remaining items
-        while iAL <= iAR
-            t[oL] = v[iAL]
-            iAL += 1
-            oL += 1
+        while a_lo <= a_hi
+            t[k_lo] = v[a_lo]
+            a_lo += 1
+            k_lo += 1
         end
-        while iBL <= iBR
-            t[oL] = v[iBL]
-            iBL += 1
-            oL += 1
+        while b_lo <= b_hi
+            t[k_lo] = v[b_lo]
+            b_lo += 1
+            k_lo += 1
         end
         # copy back from t to v
         offset = lo-1
@@ -755,34 +751,32 @@ function twoended_merge!(v::AbstractVector{T}, lo::Integer, hiA::Integer, hi::In
     end
 end
 
-# merge v[lo:lo+lenA-1] and v[lo+lenA:hi] using buffer t[1:lenA]
+# merge v[lo:m] and v[m+1:hi] using buffer t[1:1+m-lo]
 # based on Base.Sort MergeSort
-function merge!(v::AbstractVector{T}, lo::Integer, hi::Integer, lenA::Integer, o::Ordering, t::AbstractVector{T}) where T
+function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, t::AbstractVector{T}) where T
     @inbounds begin
-        i = 1
-        j = lo
-        while i <= lenA
+        i, j = 1, lo
+        while j <= m
             t[i] = v[j]
             i +=1
             j +=1
         end
-        iA = 1
+        a, b = 1, m + 1
         k = lo
-        iB = lo + lenA
-        while k < iB <= hi
-            if lt(o,v[iB], t[iA])
-                v[k] = v[iB]
-                iB += 1
+        while k < b <= hi
+            if lt(o, v[b], t[a])
+                v[k] = v[b]
+                b += 1
             else
-                v[k] = t[iA]
-                iA += 1
+                v[k] = t[a]
+                a += 1
             end
             k += 1
         end
-        while iA <= lenA
-            v[k] = t[iA]
+        while k < b
+            v[k] = t[a]
             k += 1
-            iA += 1
+            a += 1
         end
     end
 end
@@ -792,7 +786,7 @@ end
 # otherwise use next block in B
 macro getNextBlock!()
     quote
-        if iA > nextBlockA * blocksize + lo
+        if a > nextBlockA * blocksize + lo
             currentBlock = nextBlockA
             nextBlockA += 1
         else
@@ -804,18 +798,17 @@ macro getNextBlock!()
     end |> esc
 end
 
-# merge v[lo:hiA] and v[hiA+1:hi] using buffer buf in O(sqrt(n)) space
-function pagedMerge!(v::AbstractVector{T}, lo::Integer, hiA::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, blockLocation::AbstractVector{<:Integer}) where T
-    @assert lo < hiA < hi
-    iA = lo
-    iB = hiA + 1
-    hiB = hi
-    lenA = hiA + 1 - lo
-    lenB = hiB - hiA
+# merge v[lo:m] and v[m+1:hi] using buffer buf in O(sqrt(n)) space
+function pagedMerge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, blockLocation::AbstractVector{<:Integer}) where T
+    @assert lo < m < hi
+    a = lo
+    b = m + 1
+    lenA = 1 + m - lo
+    lenB = hi - m
 
     # regular merge if buffer is big enough
     if lenA <= length(buf)
-        merge!(v, lo, hi, lenA, o, buf)
+        merge!(v, lo, m, hi, o, buf)
         return
     elseif lenB <= length(buf)
         # TODO ?
@@ -824,11 +817,11 @@ function pagedMerge!(v::AbstractVector{T}, lo::Integer, hiA::Integer, hi::Intege
         return
     end
 
-    len = hi + 1 - lo
+    len = lenA + lenB
     blocksize = isqrt(len)
     nBlocks = len ÷ blocksize
     @assert length(buf) >= 3blocksize
-    @assert length(blockLocation) >= nBlocks+1
+    @assert length(blockLocation) >= nBlocks + 1
 
     @inline getBlockOffset(block) = (block-1)*blocksize + lo - 1
 
@@ -837,92 +830,93 @@ function pagedMerge!(v::AbstractVector{T}, lo::Integer, hiA::Integer, hi::Intege
         # merge
         ##################
         # merge into buf until full
-        oBuf = 1
-        while oBuf <= 3blocksize    # cannot run out of input elements here
-            if lt(o, v[iB], v[iA])  # -> merge! would have been used
-                buf[oBuf] = v[iB]
-                iB += 1
+        j = 1
+        while j <= 3blocksize    # cannot run out of input elements here
+            if lt(o, v[b], v[a])  # -> merge! would have been used
+                buf[j] = v[b]
+                b += 1
             else
-                buf[oBuf] = v[iA]
-                iA += 1
+                buf[j] = v[a]
+                a += 1
             end
-            oBuf += 1
+            j += 1
         end
 
         nextBlockA = 1
-        nextBlockB = (hiA+blocksize-lo) ÷ blocksize + 1
+        nextBlockB = (m + blocksize-lo) ÷ blocksize + 1
         blockLocation .= 0
         blockLocation[1:3] = -1:-1:-3
 
-        oIdx = 1
+        k = 1
         currentBlock = 0
         currentBlockIdx = 4
         # more efficient loop while more than blocksize elements of A and B are remaining
-        while iA < hiA-blocksize && iB < hiB-blocksize
+        while a < m-blocksize && b < hi-blocksize
             @getNextBlock!
             offset = (currentBlock-1)*blocksize
-            oIdx = lo + offset
-            while oIdx <= blocksize+offset + lo - 1
-                if lt(o, v[iB], v[iA])
-                    v[oIdx] = v[iB]
-                    iB += 1
+            k = lo + offset
+            while k <= blocksize+offset + lo - 1
+                if lt(o, v[b], v[a])
+                    v[k] = v[b]
+                    b += 1
                 else
-                    v[oIdx] = v[iA]
-                    iA += 1
+                    v[k] = v[a]
+                    a += 1
                 end
-                oIdx += 1
+                k += 1
             end
         end
         # merge until either A or B is empty
-        while iA <= hiA && iB <= hiB
+        k_block = 1
+        while a <= m && b <= hi
             @getNextBlock!
-            oIdx = 1
+            k_block = 1
             offset = getBlockOffset(currentBlock)
-            while oIdx <= blocksize && iA <= hiA && iB <= hiB
-                if lt(o, v[iB], v[iA])
-                    v[offset+oIdx] = v[iB]
-                    iB += 1
+            while k_block <= blocksize && a <= m && b <= hi
+                if lt(o, v[b], v[a])
+                    v[offset+k_block] = v[b]
+                    b += 1
                 else
-                    v[offset+oIdx] = v[iA]
-                    iA += 1
+                    v[offset+k_block] = v[a]
+                    a += 1
                 end
-                oIdx += 1
+                k_block += 1
             end
         end
         # copy remaining elements
         # either A or B is empty
         # copy rest of A
-        while iA <= hiA
-            if oIdx > blocksize
+        while a <= m
+            if k_block > blocksize
                 @getNextBlock!
-                oIdx = 1
+                k_block = 1
             end
             offset = getBlockOffset(currentBlock)
-            while oIdx <= blocksize && iA <= hiA
-                v[offset + oIdx] = v[iA]
-                iA += 1
-                oIdx += 1
+            while k_block <= blocksize && a <= m
+                v[offset + k_block] = v[a]
+                a += 1
+                k_block += 1
             end
         end
         # copy rest of B
-        while iB <= hiB
-            if oIdx > blocksize
+        while b <= hi
+            if k_block > blocksize
                 @getNextBlock!
-                oIdx = 1
+                k_block = 1
             end
             offset = getBlockOffset(currentBlock)
-            while oIdx <= blocksize && iB <= hiB
-                v[offset + oIdx] = v[iB]
-                iB += 1
-                oIdx += 1
+            while k_block <= blocksize && b <= hi
+                v[offset + k_block] = v[b]
+                b += 1
+                k_block += 1
             end
         end
         # copy last partial block to end
-        partialBlockPresent = oIdx <= blocksize
+        partialBlockPresent = k_block <= blocksize
         if partialBlockPresent
             offset = getBlockOffset(currentBlock)
             offset2 = nBlocks*blocksize + lo - 1
-            for j = 1:oIdx-1
+            for j = 1:k_block-1
                 v[offset2 + j] = v[offset + j]
             end
             blockLocation[currentBlockIdx-1] = 0
@@ -1048,7 +1042,7 @@ function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, o
         pagedmergesort!(v, m+1, hi, o, buf, blockLocation)
     end
     if len <= length(buf)
-        twoended_merge!(v, lo, hi, m, o, buf)
+        twoended_merge!(v, lo, m, hi, o, buf)
     else
         pagedMerge!(v, lo, m, hi, o, buf, blockLocation)
     end
