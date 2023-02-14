@@ -123,8 +123,9 @@ for T in (Float64, Int, UInt8)
     for alg in stable_algorithms
         for ord in [Base.Order.By(identity), Base.Order.By(_ -> 0), Base.Order.By(Base.Fix2(÷, 100))]
             for n in vcat(0:31, 40:11:100, 110:51:1000)
-                v = sort(rand(T, n))
-                @test v == sort(v; alg=alg, order=ord)
+                v = rand(T, n)
+                # use MergeSort to guarantee stable sorting in Julia 1.0
+                @test sort(v, alg=alg, order=ord) == sort(v, alg=MergeSort, order=ord)
             end
         end
     end
