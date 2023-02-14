@@ -76,7 +76,7 @@ Characteristics:
  - https://arxiv.org/pdf/2106.05123.pdf
  - https://github.com/orlp/pdqsort
 """
-const BranchyPatternDefeatingQuicksort  = BranchyPatternDefeatingQuicksortAlg()
+const BranchyPatternDefeatingQuicksort  = maybe_optimize(BranchyPatternDefeatingQuicksortAlg())
 const BranchyPdqSort  = BranchyPatternDefeatingQuicksort
 
 """
@@ -102,7 +102,7 @@ Characteristics:
  - http://arxiv.org/abs/1604.06697
 
 """
-const BranchlessPatternDefeatingQuicksort  = BranchlessPatternDefeatingQuicksortAlg()
+const BranchlessPatternDefeatingQuicksort  = maybe_optimize(BranchlessPatternDefeatingQuicksortAlg())
 const BranchlessPdqSort  = BranchlessPatternDefeatingQuicksort
 
 const PDQ_SMALL_THRESHOLD = 32
