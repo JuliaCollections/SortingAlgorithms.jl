@@ -69,14 +69,16 @@ the input is merged interleaved from both sides, which increases performance
 for random data.
 
 Characteristics:
- - *stable* does preserve the ordering of elements which
+ - *stable*: does preserve the ordering of elements which
    compare equal (e.g. "a" and "A" in a sort of letters which
    ignores case).
- - *O(√n)* auxilary memory usage.
- - *`O(n log n)` garuanteed runtime*.
+ - *`O(√n)`* auxilary memory usage.
+ - *`O(n log n)`* garuanteed runtime.
 
 ## References
- - https://link.springer.com/chapter/10.1007/BFb0016253
+ - Dvořák, S., Ďurian, B. (1986). Towards an efficient merging. In: Gruska, J., Rovan, B., Wiedermann,
+   J. (eds) Mathematical Foundations of Computer Science 1986. MFCS 1986. Lecture Notes in Computer Science, vol 233.
+   Springer, Berlin, Heidelberg. https://doi.org/10.1007/BFb0016253
  - https://max-arbuzov.blogspot.com/2021/10/merge-sort-with-osqrtn-auxiliary-memory.html
 """
 const PagedMergeSort  = maybe_optimize(PagedMergeSortAlg())
@@ -88,14 +90,16 @@ Multithreaded version of PagedMergeSort using Threads.nthreads-times the auxilar
 Uses multithreaded recursion (not multithreaded merging), so the maximum speedup is
 limited to O(log n)
 Characteristics:
- - *stable* does preserve the ordering of elements which
+ - *stable*: does preserve the ordering of elements which
    compare equal (e.g. "a" and "A" in a sort of letters which
    ignores case).
- - *O(√n)* auxilary memory usage.
- - *`O(n log n)` garuanteed runtime*.
+ - *`O(√n)`* auxilary memory usage.
+ - *`O(n log n)`* garuanteed runtime.
 
 ## References
- - https://link.springer.com/chapter/10.1007/BFb0016253
+ - Dvořák, S., Ďurian, B. (1986). Towards an efficient merging. In: Gruska, J., Rovan, B., Wiedermann,
+   J. (eds) Mathematical Foundations of Computer Science 1986. MFCS 1986. Lecture Notes in Computer Science, vol 233.
+   Springer, Berlin, Heidelberg. https://doi.org/10.1007/BFb0016253
  - https://max-arbuzov.blogspot.com/2021/10/merge-sort-with-osqrtn-auxiliary-memory.html
  - https://en.wikipedia.org/wiki/Merge_sort#Merge_sort_with_parallel_recursion
 """
