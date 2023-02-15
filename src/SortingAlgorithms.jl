@@ -1011,27 +1011,7 @@ end
 
 # midpoint was added to Base.sort in version 1.4 and later moved to Base
 # -> redefine for compatibility with earlier versions
-_midpoint(lo::Integer, hi::Integer) = lo + ((hi - lo) >>> 0x01)
-
-# modified from Base.sort
-@inline function selectpivot!(v::AbstractVector, lo::Integer, hi::Integer, o::Ordering)
-    @inbounds begin
-        # use hi+1 to ensure reverse sorted list is swapped perfectly
-        mi = _midpoint(lo, hi+1)
-        # sort v[mi] <= v[lo] <= v[hi] such that the pivot is immediately in place
-        if lt(o, v[lo], v[mi])
-            v[mi], v[lo] = v[lo], v[mi]
-        end
-        
-        if lt(o, v[hi], v[lo])
-            if lt(o, v[hi],  v[mi])
-                v[hi], v[lo], v[mi] = v[lo], v[mi], v[hi]
-            else
-                v[hi], v[lo] = v[lo], v[hi]
-            end
-        end
-    end
-end
+midpoint(lo::Integer, hi::Integer) = lo + ((hi - lo) >>> 0x01)
 
 @inline function swap!(v::AbstractVector, i::Integer, j::Integer)
     v[i], v[j] = v[j], v[i]
@@ -1041,19 +1021,18 @@ end
     lt(o, v[hi], v[lo]) && swap!(v, lo, hi)
 end
 
-@inline function sort3!(v::AbstractVector, lo::Integer, mid::Integer, hi::Integer, o::Ordering)
-    sort2!(v,  lo, mid, o)
-    sort2!(v, mid,  hi, o)
-    sort2!(v,  lo, mid, o)
+@inline function sort3!(v::AbstractVector, lo::Integer, m::Integer, hi::Integer, o::Ordering)
+    sort2!(v, lo,  m, o)
+    sort2!(v,  m, hi, o)
+    sort2!(v, lo,  m, o)
 end
 
-@inline function selectpivot_ninther(v::AbstractVector, lo::Integer, hi::Integer, len::Integer, o::Ordering)
-    s2 = len ÷ 2
-    sort3!(v, lo, lo + s2, hi, o)
-    sort3!(v, lo + 1, lo + (s2 - 1), hi - 1, o)
-    sort3!(v, lo + 2, lo + (s2 + 1), hi - 2, o)
-    sort3!(v, lo + (s2 - 1), lo + s2, lo + (s2 + 1), o)
-    swap!(v, lo, lo + s2)
+@inline function selectpivot_ninther!(v::AbstractVector, lo::Integer, m::Integer, hi::Integer, o::Ordering)
+    sort3!(v, lo  , m  , hi  , o)
+    sort3!(v, lo+1, m-1, hi-1, o)
+    sort3!(v, lo+2, m+1, hi-2, o)
+    sort3!(v, m-1, m, m+1, o)
+    swap!(v, lo, m)
 end
 
 pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::BranchlessPatternDefeatingQuicksortAlg, o::Ordering, bad_allowed::Integer, offsets_l::Nothing, offsets_r::Nothing, leftmost=true) =
@@ -1074,13 +1053,15 @@ function pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::PatternDe
         end
         
         # Choose pivot as median of 3 or pseudomedian of 9.
+        # use hi+1 to ensure reverse sorted list is swapped perfectly
+        m = midpoint(lo, hi+1)
         if len > PDQ_NINTHER_THRESHOLD
-            selectpivot_ninther(v, lo, hi, len, o)
+            selectpivot_ninther!(v, lo, m, hi, o)
         else
-            selectpivot!(v, lo, hi, o)
+            sort3!(v, m, lo, hi, o)
         end
         # If v[lo - 1] is the end of the right partition of a previous partition operation
-        # there is no element in [begin, end) that is smaller than v[lo - 1]. Then if our
+        # there is no element in v[lo:hi] that is smaller than v[lo - 1]. Then if our
         # pivot compares equal to v[lo - 1] we change strategy, putting equal elements in
         # the left partition, greater elements in the right partition. We do not have to
         # recurse on the left partition, since it's sorted (all equal).
