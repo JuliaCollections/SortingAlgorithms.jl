@@ -117,3 +117,17 @@ for n in [0:10..., 100, 101, 1000, 1001]
         @test reinterpret(UInt64,vp) == reinterpret(UInt64,s)
     end
 end
+
+# additional tests to cover spacial cases of PdqSort
+# test partial insertionsort, shuffle elements, partition_left
+for v in [[1:1000;10], [1:500;500:-1:1], rand(Int,1000).%4]
+    for alg in [BranchyPatternDefeatingQuicksort, BranchlessPatternDefeatingQuicksort]
+        @test issorted(sort(v, alg=alg))
+    end
+end
+# test fallback to HeapSort
+let v = [1:500;500:-1:1]
+    bad_allowed = 1
+    SortingAlgorithms.pdqsort_loop!(v, 1, length(v), SortingAlgorithms.BranchyPatternDefeatingQuicksortAlg(), Base.Order.Forward, bad_allowed, nothing, nothing)
+    @test issorted(v)
+end
