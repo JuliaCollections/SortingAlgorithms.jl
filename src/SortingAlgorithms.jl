@@ -1101,8 +1101,8 @@ function pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::PatternDe
         if is_highly_unbalanced
             # If we had too many bad partitions, switch to heapsort to guarantee O(n log n).
             bad_allowed -= 1
-            if bad_allowed == 0
-                sort!(v, lo, hi, SortingAlgorithms.HeapSort, o)
+            if bad_allowed <= 0
+                sort!(v, lo, hi, HeapSortAlg(), o)
                 return v
             end
             
