@@ -752,12 +752,10 @@ pivot is a median of at least 3 elements and that v[lo:hi] is at least PDQ_SMALL
 Uses branchless partitioning.
 """
 function partition_right!(v::AbstractVector, lo::Integer, hi::Integer, a::BranchlessPatternDefeatingQuicksortAlg, o::Ordering, offsets_l::AbstractVector{Int}, offsets_r::AbstractVector{Int})
-    # input:
-    # v[lo] -> pivot
     # output:
-    # v[lo:pivot_position-1] < pivot
-    # v[pivot_position] == pivot
-    # v[pivot_position+1:hi] >= pivot
+    # v[lo:pivot_index-1] < pivot
+    # v[pivot_index] == pivot
+    # v[pivot_index+1:hi] >= pivot
     @inbounds begin
         pivot = v[lo]
 
@@ -880,11 +878,11 @@ function partition_right!(v::AbstractVector, lo::Integer, hi::Integer, a::Branch
         end
 
         # Put the pivot in the right place.
-        pivot_position = left - 1
-        v[lo] = v[pivot_position]
-        v[pivot_position] = pivot
+        pivot_index = left - 1
+        v[lo] = v[pivot_index]
+        v[pivot_index] = pivot
     end
-    return pivot_position, was_already_partitioned
+    return pivot_index, was_already_partitioned
 end
 
 """
@@ -897,12 +895,10 @@ after partitioning and whether the passed sequence already was correctly partiti
 pivot is a median of at least 3 elements and that v[lo:hi] is at least PDQ_SMALL_THRESHOLD long.
 """
 function partition_right!(v::AbstractVector, lo::Integer, hi::Integer, a::BranchyPatternDefeatingQuicksortAlg, o::Ordering, _, _)
-    # input:
-    # v[lo] -> pivot
     # output:
-    # v[lo:pivot_position-1] < pivot
-    # v[pivot_position] == pivot
-    # v[pivot_position+1:hi] >= pivot
+    # v[lo:pivot_index-1] < pivot
+    # v[pivot_index] == pivot
+    # v[pivot_index+1:hi] >= pivot
     @inbounds begin
         pivot = v[lo]
 
@@ -947,12 +943,12 @@ function partition_right!(v::AbstractVector, lo::Integer, hi::Integer, a::Branch
         end
 
         # Put the pivot in the right place.
-        pivot_position = left - 1
-        v[lo] = v[pivot_position]
-        v[pivot_position] = pivot
+        pivot_index = left - 1
+        v[lo] = v[pivot_index]
+        v[pivot_index] = pivot
 
     end
-    return pivot_position, was_already_partitioned
+    return pivot_index, was_already_partitioned
 end
 
 """
@@ -966,12 +962,10 @@ Since this is rarely used (the many equal case), and in that case pdqsort alread
 performance, no block quicksort is applied here for simplicity.
 """
 function partition_left!(v::AbstractVector, lo::Integer, hi::Integer, o::Ordering)
-    # input:
-    # v[hi] -> pivot
     # output:
-    # v[lo:pivot_position-1] <= pivot
-    # v[pivot_position] == pivot
-    # v[pivot_position+1:hi] > pivot
+    # v[lo:pivot_index-1] <= pivot
+    # v[pivot_index] == pivot
+    # v[pivot_index+1:hi] > pivot
     
     @inbounds begin
         pivot = v[lo]
@@ -1002,11 +996,11 @@ function partition_left!(v::AbstractVector, lo::Integer, hi::Integer, o::Orderin
         end
         
         # Put the pivot in the right place.
-        pivot_position = right
-        v[lo] = v[pivot_position]
-        v[pivot_position] = pivot
+        pivot_index = right
+        v[lo] = v[pivot_index]
+        v[pivot_index] = pivot
     end
-    return pivot_position
+    return pivot_index
 end
 
 # midpoint was added to Base.sort in version 1.4 and later moved to Base
@@ -1071,11 +1065,11 @@ function pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::PatternDe
         end
         
         # Partition and get results.
-        pivot_pos, was_already_partitioned = partition_right!(v, lo, hi, a, o, offsets_l, offsets_r)
+        pivot_index, was_already_partitioned = partition_right!(v, lo, hi, a, o, offsets_l, offsets_r)
         
         # Check for a highly unbalanced partition.
-        l_len = pivot_pos - lo;
-        r_len = hi - (pivot_pos + 1);
+        l_len = pivot_index - lo;
+        r_len = hi - (pivot_index + 1);
         is_highly_unbalanced = l_len < len ÷ 8 || r_len < len ÷ 8
         
         # If we got a highly unbalanced partition we shuffle elements to break many patterns.
@@ -1088,42 +1082,42 @@ function pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::PatternDe
             end
             
             if l_len > PDQ_SMALL_THRESHOLD
-                swap!(v,    lo,             lo + l_len ÷ 4)
-                swap!(v,    pivot_pos - 1,  pivot_pos - l_len ÷ 4)
+                swap!(v, lo,              lo + l_len ÷ 4)
+                swap!(v, pivot_index - 1, pivot_index - l_len ÷ 4)
                 
                 if (l_len > PDQ_NINTHER_THRESHOLD)
-                    swap!(v, lo + 1,        lo + (l_len ÷ 4 + 1))
-                    swap!(v, lo + 2,        lo + (l_len ÷ 4 + 2))
-                    swap!(v, pivot_pos - 2, pivot_pos - (l_len ÷ 4 + 1))
-                    swap!(v, pivot_pos - 3, pivot_pos - (l_len ÷ 4 + 2))
+                    swap!(v, lo + 1,          lo + (l_len ÷ 4 + 1))
+                    swap!(v, lo + 2,          lo + (l_len ÷ 4 + 2))
+                    swap!(v, pivot_index - 2, pivot_index - (l_len ÷ 4 + 1))
+                    swap!(v, pivot_index - 3, pivot_index - (l_len ÷ 4 + 2))
                 end
             end
 
             if r_len > PDQ_SMALL_THRESHOLD
-                swap!(v,    pivot_pos + 1,  pivot_pos + (1 + r_len ÷ 4))
-                swap!(v,    hi,             hi - r_len ÷ 4)
+                swap!(v, pivot_index + 1, pivot_index + (1 + r_len ÷ 4))
+                swap!(v, hi,              hi - r_len ÷ 4)
                 
                 if (r_len > PDQ_NINTHER_THRESHOLD)
-                    swap!(v, pivot_pos + 2, pivot_pos + (2 + r_len ÷ 4))
-                    swap!(v, pivot_pos + 3, pivot_pos + (3 + r_len ÷ 4))
-                    swap!(v, hi - 1 ,       hi - 1 - r_len ÷ 4)
-                    swap!(v, hi - 2,        hi - 2 - r_len ÷ 4)
+                    swap!(v, pivot_index + 2, pivot_index + (2 + r_len ÷ 4))
+                    swap!(v, pivot_index + 3, pivot_index + (3 + r_len ÷ 4))
+                    swap!(v, hi - 1,          hi - 1 - r_len ÷ 4)
+                    swap!(v, hi - 2,          hi - 2 - r_len ÷ 4)
                 end
             end
         else
             # If we were decently balanced and we tried to sort an already partitioned
             # sequence try to use insertion sort.
             if was_already_partitioned &&
-                partial_insertion_sort!(v, lo, pivot_pos, o) &&
-                partial_insertion_sort!(v, pivot_pos + 1, hi, o)
+                partial_insertion_sort!(v, lo, pivot_index, o) &&
+                partial_insertion_sort!(v, pivot_index + 1, hi, o)
                 return v
             end
         end
         
         # Sort the left partition first using recursion and do tail recursion elimination for
         # the right-hand partition.
-        pdqsort_loop!(v, lo, pivot_pos-1, a, o, bad_allowed, offsets_l, offsets_r, leftmost)
-        lo = pivot_pos + 1
+        pdqsort_loop!(v, lo, pivot_index-1, a, o, bad_allowed, offsets_l, offsets_r, leftmost)
+        lo = pivot_index + 1
         leftmost = false
     end
 end
