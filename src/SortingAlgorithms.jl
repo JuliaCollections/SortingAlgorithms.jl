@@ -19,12 +19,12 @@ struct CombSortAlg  <: Algorithm end
 struct PagedMergeSortAlg  <: Algorithm end
 struct ThreadedPagedMergeSortAlg  <: Algorithm end
 
-function maybe_optimize(x::Algorithm) 
+function maybe_optimize(x::Algorithm)
     isdefined(Base.Sort, :InitialOptimizations) ? Base.Sort.InitialOptimizations(x) : x
-end     
+end
 const HeapSort  = maybe_optimize(HeapSortAlg())
 const TimSort   = maybe_optimize(TimSortAlg())
-# Whenever InitialOptimizations is defined, RadixSort falls 
+# Whenever InitialOptimizations is defined, RadixSort falls
 # back to Base.DEFAULT_STABLE which already incldues them.
 const RadixSort = RadixSortAlg()
 
@@ -688,24 +688,23 @@ end
 # PagedMergeSort
 ###
 
-# merge v[lo:m] and v[m+1:hi] ([A;B])  using buffer t[1:1+hi-lo]
-# this is faster than merge! but requires twice as much auxiliary memory.
+# merge v[lo:m] and v[m+1:hi] ([A;B]) using buffer t[1:1+hi-lo]
+# This is faster than merge! but requires twice as much auxiliary memory.
 function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, t::AbstractVector{T}) where T
-    @assert lo <= m <= hi
-
+    @assert lo ≤ m ≤ hi
+    @assert abs((m-lo) - (hi-(m+1))) ≤ 1 "twoended_merge! only supports balanced merges"
+    len = 1 + hi - lo
     # input array indices
     a_lo = lo
     a_hi = m
-    b_lo = m + 1    
+    b_lo = m + 1
     b_hi = hi
     # output array indices
     k_lo = 1
-    k_hi = 1 + hi - lo
-
+    k_hi = len
     @inbounds begin
         # two ended merge
-        # while at least 2 elements remain in both A and B
-        while a_lo < a_hi && b_lo < b_hi
+        while k_lo <= len ÷ 2
             if lt(o, v[b_lo], v[a_lo])
                 t[k_lo] = v[b_lo]
                 b_lo += 1
@@ -723,32 +722,15 @@ function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Inte
             end
             k_hi -=1
         end
-        # regular merge
-        # until either A or B runs out
-        while a_lo <= a_hi && b_lo <= b_hi
-            if  lt(o, v[b_lo], v[a_lo])
-                t[k_lo] = v[b_lo]
-                b_lo += 1
-            else
-                t[k_lo] = v[a_lo]
-                a_lo += 1
-            end
-            k_lo += 1
-        end
-        # either A or B is empty -> copy remaining items
-        while a_lo <= a_hi
+        # if the input length is odd,
+        # one item remains
+        if a_lo <= a_hi
             t[k_lo] = v[a_lo]
-            a_lo += 1
-            k_lo += 1
-        end
-        while b_lo <= b_hi
+        elseif b_lo <= b_hi
             t[k_lo] = v[b_lo]
-            b_lo += 1
-            k_lo += 1
         end
         # copy back from t to v
         offset = lo-1
-        len = 1 + hi - lo
         for i = 1:len
             v[offset+i] = t[i]
         end
