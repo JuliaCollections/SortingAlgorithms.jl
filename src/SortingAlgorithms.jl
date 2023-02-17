@@ -1029,6 +1029,22 @@ end
     swap!(v, lo, m)
 end
 
+@inline function swap3consecutive!(v::AbstractVector, i::Integer, j::Integer)
+    swap!(v, i,   j)
+    swap!(v, i+1, j+1)
+    swap!(v, i+2, j+2)
+end
+
+# swap first 3 and last 3 elements each with 3 pseudorandomly chosen consecutive elements from v[lo+3:hi-3]
+function breakpatterns!(v::AbstractVector, lo::Integer, hi::Integer)    
+    # correct because hi+1-lo > PDQ_SMALL_THRESHOLD > 8
+    len8 = hi - lo - 6 # length minus 8
+    idx_lo = typeof(len8)(hash(lo) % len8) + lo + 3
+    idx_hi = typeof(len8)(hash(hi) % len8) + lo + 3
+    swap3consecutive!(v, lo, idx_lo)
+    swap3consecutive!(v, hi-2, idx_hi)
+end
+
 pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::BranchlessPatternDefeatingQuicksortAlg, o::Ordering, bad_allowed::Integer, offsets_l::Nothing, offsets_r::Nothing, leftmost=true) =
 pdqsort_loop!(v, lo, hi, a, o, bad_allowed, MVector{PDQ_BLOCK_SIZE, Int}(undef), MVector{PDQ_BLOCK_SIZE, Int}(undef), leftmost)
 
@@ -1068,11 +1084,10 @@ function pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::PatternDe
         pivot_index, was_already_partitioned = partition_right!(v, lo, hi, a, o, offsets_l, offsets_r)
         
         # Check for a highly unbalanced partition.
-        l_len = pivot_index - lo;
-        r_len = hi - (pivot_index + 1);
-        is_highly_unbalanced = l_len < len ÷ 8 || r_len < len ÷ 8
+        len_r = pivot_index - lo;
+        len_l = hi - pivot_index;
+        is_highly_unbalanced = len_r < len ÷ 8 || len_l < len ÷ 8
         
-        # If we got a highly unbalanced partition we shuffle elements to break many patterns.
         if is_highly_unbalanced
             # If we had too many bad partitions, switch to heapsort to guarantee O(n log n).
             bad_allowed -= 1
@@ -1080,30 +1095,9 @@ function pdqsort_loop!(v::AbstractVector, lo::Integer, hi::Integer, a::PatternDe
                 sort!(v, lo, hi, HeapSortAlg(), o)
                 return v
             end
-            
-            if l_len > PDQ_SMALL_THRESHOLD
-                swap!(v, lo,              lo + l_len ÷ 4)
-                swap!(v, pivot_index - 1, pivot_index - l_len ÷ 4)
-                
-                if (l_len > PDQ_NINTHER_THRESHOLD)
-                    swap!(v, lo + 1,          lo + (l_len ÷ 4 + 1))
-                    swap!(v, lo + 2,          lo + (l_len ÷ 4 + 2))
-                    swap!(v, pivot_index - 2, pivot_index - (l_len ÷ 4 + 1))
-                    swap!(v, pivot_index - 3, pivot_index - (l_len ÷ 4 + 2))
-                end
-            end
-
-            if r_len > PDQ_SMALL_THRESHOLD
-                swap!(v, pivot_index + 1, pivot_index + (1 + r_len ÷ 4))
-                swap!(v, hi,              hi - r_len ÷ 4)
-                
-                if (r_len > PDQ_NINTHER_THRESHOLD)
-                    swap!(v, pivot_index + 2, pivot_index + (2 + r_len ÷ 4))
-                    swap!(v, pivot_index + 3, pivot_index + (3 + r_len ÷ 4))
-                    swap!(v, hi - 1,          hi - 1 - r_len ÷ 4)
-                    swap!(v, hi - 2,          hi - 2 - r_len ÷ 4)
-                end
-            end
+            # If we got a highly unbalanced partition we shuffle elements to break adverse patterns.
+            len_r > PDQ_SMALL_THRESHOLD && breakpatterns!(v, lo, pivot_index - 1)
+            len_l > PDQ_SMALL_THRESHOLD && breakpatterns!(v, pivot_index + 1, hi)
         else
             # If we were decently balanced and we tried to sort an already partitioned
             # sequence try to use insertion sort.
