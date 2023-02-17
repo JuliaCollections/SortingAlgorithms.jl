@@ -5,7 +5,7 @@ using Random
 
 a = rand(1:10000, 1000)
 
-for alg in [TimSort, HeapSort, RadixSort, CombSort]
+for alg in [TimSort, HeapSort, RadixSort, CombSort, BranchyPatternDefeatingQuicksort, BranchlessPatternDefeatingQuicksort]
     b = sort(a, alg=alg)
     @test issorted(b)
     ix = sortperm(a, alg=alg)
@@ -85,7 +85,7 @@ for n in [0:10..., 100, 101, 1000, 1001]
         end
 
         # unstable algorithms
-        for alg in [HeapSort, CombSort]
+        for alg in [HeapSort, CombSort, BranchyPatternDefeatingQuicksort, BranchlessPatternDefeatingQuicksort]
             p = sortperm(v, alg=alg, order=ord)
             @test isperm(p)
             @test v[p] == si
@@ -99,7 +99,7 @@ for n in [0:10..., 100, 101, 1000, 1001]
 
     v = randn_with_nans(n,0.1)
     for ord in [Base.Order.Forward, Base.Order.Reverse],
-        alg in [TimSort, HeapSort, RadixSort, CombSort]
+        alg in [TimSort, HeapSort, RadixSort, CombSort, BranchyPatternDefeatingQuicksort, BranchlessPatternDefeatingQuicksort]
         # test float sorting with NaNs
         s = sort(v, alg=alg, order=ord)
         @test issorted(s, order=ord)
@@ -116,4 +116,18 @@ for n in [0:10..., 100, 101, 1000, 1001]
         @test isequal(vp,s)
         @test reinterpret(UInt64,vp) == reinterpret(UInt64,s)
     end
+end
+
+# additional tests to cover spacial cases of PdqSort
+# test partial insertionsort, shuffle elements, partition_left
+for v in [[1:1000;10], [1:500;500:-1:1], rand(Int,1000).%4]
+    for alg in [BranchyPatternDefeatingQuicksort, BranchlessPatternDefeatingQuicksort]
+        @test issorted(sort(v, alg=alg))
+    end
+end
+# test fallback to HeapSort
+let v = [1:500;500:-1:1]
+    bad_allowed = 1
+    SortingAlgorithms.pdqsort_loop!(v, 1, length(v), SortingAlgorithms.BranchyPatternDefeatingQuicksortAlg(), Base.Order.Forward, bad_allowed, nothing, nothing)
+    @test issorted(v)
 end
