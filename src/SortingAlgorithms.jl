@@ -737,6 +737,23 @@ function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Inte
     end
 end
 
+# core merging loop used throughout PagedMergeSort
+Base.@propagate_inbounds function merge!(f::Function,
+    target::AbstractVector{T}, source_a::AbstractVector{T}, source_b::AbstractVector{T},
+    o::Ordering, a::Integer, b::Integer, k::Integer) where T
+    while f(a,b,k)
+        if lt(o, source_b[b], source_a[a])
+            target[k] = source_b[b]
+            b += 1
+        else
+            target[k] = source_a[a]
+            a += 1
+        end
+        k += 1
+    end
+    a,b,k
+end
+
 # merge v[lo:m] and v[m+1:hi] using buffer t[1:1+m-lo]
 # based on Base.Sort MergeSort
 function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, t::AbstractVector{T}) where T
@@ -749,16 +766,8 @@ function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::O
         end
         a, b = 1, m + 1
         k = lo
-        while k < b <= hi
-            if lt(o, v[b], t[a])
-                v[k] = v[b]
-                b += 1
-            else
-                v[k] = t[a]
-                a += 1
-            end
-            k += 1
-        end
+        f(_,b,k) = k < b <= hi
+        a,b,k = merge!(f,v,t,v,o,a,b,k)
         while k < b
             v[k] = t[a]
             k += 1
@@ -816,17 +825,7 @@ function pagedMerge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer,
         # merge
         ##################
         # merge into buf until full
-        j = 1
-        while j <= 3blocksize    # cannot run out of input elements here
-            if lt(o, v[b], v[a])  # -> merge! would have been used
-                buf[j] = v[b]
-                b += 1
-            else
-                buf[j] = v[a]
-                a += 1
-            end
-            j += 1
-        end
+        a,b,k = merge!((_,_,k) -> k<=3blocksize,buf,v,v,o,a,b,1)
 
         nextBlockA = 1
         nextBlockB = (m + blocksize-lo) ÷ blocksize + 1
@@ -837,38 +836,20 @@ function pagedMerge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer,
         currentBlock = 0
         currentBlockIdx = 4
         # more efficient loop while more than blocksize elements of A and B are remaining
+        while_condition1(offset) = (_,_,k) -> k <= offset + blocksize
         while a < m-blocksize && b < hi-blocksize
             @getNextBlock!
-            offset = (currentBlock-1)*blocksize
-            k = lo + offset
-            while k <= blocksize+offset + lo - 1
-                if lt(o, v[b], v[a])
-                    v[k] = v[b]
-                    b += 1
-                else
-                    v[k] = v[a]
-                    a += 1
-                end
-                k += 1
-            end
+            offset = getBlockOffset(currentBlock)
+            a,b,k = merge!(while_condition1(offset),v,v,v,o,a,b,offset+1)
         end
         # merge until either A or B is empty
-        k_block = 1
+        while_condition2(offset) = (a,b,k) -> k <= offset + blocksize && a <= m && b <= hi
         while a <= m && b <= hi
             @getNextBlock!
-            k_block = 1
             offset = getBlockOffset(currentBlock)
-            while k_block <= blocksize && a <= m && b <= hi
-                if lt(o, v[b], v[a])
-                    v[offset+k_block] = v[b]
-                    b += 1
-                else
-                    v[offset+k_block] = v[a]
-                    a += 1
-                end
-                k_block += 1
-            end
+            a,b,k = merge!(while_condition2(offset),v,v,v,o,a,b,offset+1)
         end
+        k_block = k - getBlockOffset(currentBlock)
         # copy remaining elements
         # either A or B is empty
         # copy rest of A
