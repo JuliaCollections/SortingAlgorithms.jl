@@ -61,7 +61,7 @@ Indicates that a sorting function should use the paged merge sort
 algorithm. Paged merge sort uses is a merge sort, that uses different
 merge routines to achieve stable sorting with a scratch space of size O(√n).
 The merge routine for merging large subarrays merges
-blocks/pages of size O(√n) almost in place, before reordering them using a page table.
+pages of size O(√n) almost in place, before reordering them using a page table.
 At deeper recursion levels, where the scratch space is big enough,
 normal merging is used, where one input is copied into the scratch space.
 When the scratch space is large enough to hold the complete subarray,
@@ -776,25 +776,28 @@ function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::O
     end
 end
 
-# macro used for block management in pagedMerge!
-# use next block in A (left subarray) if it is free,
-# otherwise use next block in B
-macro getNextBlock!()
-    quote
-        if a > nextBlockA * blocksize + lo
-            currentBlock = nextBlockA
-            nextBlockA += 1
-        else
-            currentBlock = nextBlockB
-            nextBlockB += 1
-        end
-        blockLocation[currentBlockIdx] = currentBlock
-        currentBlockIdx += 1
-    end |> esc
+struct Pages
+    current::Int # current page being merged into
+    nextA::Int   # next possible page in A
+    nextB::Int   # next possible page in B
 end
 
-# merge v[lo:m] and v[m+1:hi] using buffer buf in O(sqrt(n)) space
-function pagedMerge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, blockLocation::AbstractVector{<:Integer}) where T
+next_page_A(pages::Pages) = Pages(pages.nextA, pages.nextA + 1, pages.nextB)
+next_page_B(pages::Pages) = Pages(pages.nextB, pages.nextA, pages.nextB + 1)
+
+function next_page!(pageLocations, pages, currentPageIndex, pagesize, lo, a)
+    if a > pages.nextA * pagesize + lo
+        pages = next_page_A(pages)
+    else
+        pages = next_page_B(pages)
+    end
+    pageLocations[currentPageIndex] = pages.current
+    currentPageIndex += 1
+    pages, currentPageIndex
+end
+
+# merge v[lo:m] (A) and v[m+1:hi] (B) using buffer buf in O(sqrt(n)) space
+function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, pageLocations::AbstractVector{<:Integer}) where T
     @assert lo < m < hi
     a = lo
     b = m + 1
@@ -813,142 +816,144 @@ function pagedMerge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer,
     end
 
     len = lenA + lenB
-    blocksize = isqrt(len)
-    nBlocks = len ÷ blocksize
-    @assert length(buf) >= 3blocksize
-    @assert length(blockLocation) >= nBlocks + 1
+    pagesize = isqrt(len)
+    nPages = len ÷ pagesize
+    @assert length(buf) >= 3pagesize
+    @assert length(pageLocations) >= nPages + 1
 
-    @inline getBlockOffset(block) = (block-1)*blocksize + lo - 1
+    @inline page_offset(page) = (page-1)*pagesize + lo - 1
 
     @inbounds begin
         ##################
         # merge
         ##################
-        # merge into buf until full
-        a,b,k = merge!((_,_,k) -> k<=3blocksize,buf,v,v,o,a,b,1)
-
-        nextBlockA = 1
-        nextBlockB = (m + blocksize-lo) ÷ blocksize + 1
-        blockLocation .= 0
-        blockLocation[1:3] = -1:-1:-3
-
+        # merge the first 3 pages into buf
+        a,b,k = merge!((_,_,k) -> k<=3pagesize,buf,v,v,o,a,b,1)
+        # initialize variable for merging into pages
+        pageLocations .= 0
+        pageLocations[1:3] = -1:-1:-3
+        currentPageIndex = 4
+        currentPage = 0
+        nextPageA = 1
+        nextPageB = (m + pagesize-lo) ÷ pagesize + 1
+        pages = Pages(currentPage, nextPageA, nextPageB)
         k = 1
-        currentBlock = 0
-        currentBlockIdx = 4
-        # more efficient loop while more than blocksize elements of A and B are remaining
-        while_condition1(offset) = (_,_,k) -> k <= offset + blocksize
-        while a < m-blocksize && b < hi-blocksize
-            @getNextBlock!
-            offset = getBlockOffset(currentBlock)
+        # more efficient loop while more than pagesize elements of A and B are remaining
+        while_condition1(offset) = (_,_,k) -> k <= offset + pagesize
+        while a < m-pagesize && b < hi-pagesize
+            pages, currentPageIndex = next_page!(pageLocations, pages, currentPageIndex, pagesize, lo, a)
+            offset = page_offset(pages.current)
             a,b,k = merge!(while_condition1(offset),v,v,v,o,a,b,offset+1)
         end
         # merge until either A or B is empty
-        while_condition2(offset) = (a,b,k) -> k <= offset + blocksize && a <= m && b <= hi
+        while_condition2(offset) = (a,b,k) -> k <= offset + pagesize && a <= m && b <= hi
         while a <= m && b <= hi
-            @getNextBlock!
-            offset = getBlockOffset(currentBlock)
+            pages, currentPageIndex = next_page!(pageLocations, pages, currentPageIndex, pagesize, lo, a)
+            offset = page_offset(pages.current)
             a,b,k = merge!(while_condition2(offset),v,v,v,o,a,b,offset+1)
         end
-        k_block = k - getBlockOffset(currentBlock)
+        k_page = k - page_offset(pages.current)
         # copy remaining elements
         # either A or B is empty
         # copy rest of A
         while a <= m
-            if k_block > blocksize
-                @getNextBlock!
-                k_block = 1
+            if k_page > pagesize
+                pages, currentPageIndex = next_page!(pageLocations, pages, currentPageIndex, pagesize, lo, a)
+                k_page = 1
             end
-            offset = getBlockOffset(currentBlock)
-            while k_block <= blocksize && a <= m
-                v[offset + k_block] = v[a]
+            offset = page_offset(pages.current)
+            while k_page <= pagesize && a <= m
+                v[offset + k_page] = v[a]
                 a += 1
-                k_block += 1
+                k_page += 1
             end
         end
         # copy rest of B
         while b <= hi
-            if k_block > blocksize
-                @getNextBlock!
-                k_block = 1
+            if k_page > pagesize
+                pages, currentPageIndex = next_page!(pageLocations, pages, currentPageIndex, pagesize, lo, a)
+                k_page = 1
             end
-            offset = getBlockOffset(currentBlock)
-            while k_block <= blocksize && b <= hi
-                v[offset + k_block] = v[b]
+            offset = page_offset(pages.current)
+            while k_page <= pagesize && b <= hi
+                v[offset + k_page] = v[b]
                 b += 1
-                k_block += 1
+                k_page += 1
             end
         end
-        # copy last partial block to end
-        partialBlockPresent = k_block <= blocksize
-        if partialBlockPresent
-            offset = getBlockOffset(currentBlock)
-            offset2 = nBlocks*blocksize + lo - 1
-            for j = 1:k_block-1
+        # copy last partial page to end
+        partialPagePresent = k_page <= pagesize
+        if partialPagePresent
+            offset = page_offset(pages.current)
+            offset2 = nPages*pagesize + lo - 1
+            for j = 1:k_page-1
                 v[offset2 + j] = v[offset + j]
             end
-            blockLocation[currentBlockIdx-1] = 0
+            pageLocations[currentPageIndex-1] = 0
         end
         #########################################
-        # calculate location of the 3 free blocks
+        # calculate location of the 3 free pages
         #########################################
-        nFreeBlocksB = nBlocks + 1 - nextBlockB
-        nFreeBlocksA = 3 - nFreeBlocksB - Int(partialBlockPresent)
-        freeBlocks = MVector{3,Int}(undef)
+        nFreePagesB = nPages + 1 - pages.nextB
+        nFreePagesA = 3 - nFreePagesB - Int(partialPagePresent)
+        freePages = MVector{3,Int}(undef)
         i = 1
-        for j = 0:nFreeBlocksA-1
-            freeBlocks[i] = nextBlockA + j
+        for j = 0:nFreePagesA-1
+            freePages[i] = pages.nextA + j
             i += 1
         end
-        for j = 0:nFreeBlocksB-1
-            freeBlocks[i] = nextBlockB + j
+        for j = 0:nFreePagesB-1
+            freePages[i] = pages.nextB + j
             i += 1
         end
-        if partialBlockPresent
-            freeBlocks[i] = currentBlock
+        if partialPagePresent
+            freePages[i] = pages.current
         end
-        freeBlocksIdx = 3
-        doneBlockIdx = 1
-        currentBlock = freeBlocks[end]
+        freePagesIndex = 3
+        donePageIndex = 1
+        # use currentPage instead of pages.current because
+        # pages.nextA and pages.nextB are no longer needed
+        currentPage = freePages[end]
         ##################
-        # rearrange blocks
+        # rearrange pages
         ##################
         while true
-            blc = blockLocation[currentBlock] # index of block with data belonging to currentBlock
-            if blc > 0
-                # data for currentBlock is in v
-                offset = getBlockOffset(currentBlock)
-                offset2 = getBlockOffset(blc)
-                for j = 1:blocksize
+            plc = pageLocations[currentPage] # page with data belonging to currentPage
+            if plc > 0
+                # data for currentPage is in v
+                offset = page_offset(currentPage)
+                offset2 = page_offset(plc)
+                for j = 1:pagesize
                     v[offset + j] = v[offset2 + j]
                 end
-                blockLocation[currentBlock] = 0
-                currentBlock = blc
+                pageLocations[currentPage] = 0
+                currentPage = plc
             else
-                # data for currentBlock is in buf
-                offset = getBlockOffset(currentBlock)
-                offset2 = (-blc-1)*blocksize
-                for j = 1:blocksize
+                # data for currentPage is in buf
+                offset = page_offset(currentPage)
+                offset2 = (-plc-1)*pagesize
+                for j = 1:pagesize
                     v[offset + j] = buf[offset2 + j]
                 end
-                blockLocation[currentBlock] = 0
-                if freeBlocksIdx > 1
-                    # get next free block
-                    freeBlocksIdx -= 1
-                    currentBlock = freeBlocks[freeBlocksIdx]
+                pageLocations[currentPage] = 0
+                if freePagesIndex > 1
+                    # get next free page
+                    freePagesIndex -= 1
+                    currentPage = freePages[freePagesIndex]
                 else
-                    # no free block remains
-                    # make sure that all blocks are done
-                    while blockLocation[doneBlockIdx] == 0 || blockLocation[doneBlockIdx] == doneBlockIdx
-                        doneBlockIdx += 1
-                        doneBlockIdx == nBlocks && return
+                    # no free page remains
+                    # make sure that all pages are done
+                    while pageLocations[donePageIndex] == 0 || pageLocations[donePageIndex] == donePageIndex
+                        donePageIndex += 1
+                        donePageIndex == nPages && return
                     end
-                    # copy misplaced block into buf and continue
-                    currentBlock = blockLocation[doneBlockIdx]
-                    offset = getBlockOffset(currentBlock)
-                    for j = 1:blocksize
+                    # copy misplaced page into buf and continue
+                    currentPage = pageLocations[donePageIndex]
+                    offset = page_offset(currentPage)
+                    for j = 1:pagesize
                         buf[j] = v[offset + j]
                     end
-                    blockLocation[doneBlockIdx] = -1
+                    pageLocations[donePageIndex] = -1
                 end
             end
         end
@@ -959,18 +964,18 @@ end
 # -> redefine for compatibility with earlier versions
 midpoint(lo::Integer, hi::Integer) = lo + ((hi - lo) >>> 0x01)
 
-function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, blockLocation) where T
+function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, pageLocations) where T
     len = hi + 1 - lo
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
     m = midpoint(lo, hi-1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
-    pagedmergesort!(v, lo, m, o, buf, blockLocation)
-    pagedmergesort!(v, m+1, hi, o, buf, blockLocation)
+    pagedmergesort!(v, lo, m, o, buf, pageLocations)
+    pagedmergesort!(v, m+1, hi, o, buf, pageLocations)
     if len <= length(buf)
         twoended_merge!(v, lo, m, hi, o, buf)
     else
-        pagedMerge!(v, lo, m, hi, o, buf, blockLocation)
+        paged_merge!(v, lo, m, hi, o, buf, pageLocations)
     end
     return v
 end
@@ -978,40 +983,40 @@ end
 function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::PagedMergeSortAlg, o::Ordering)
     lo >= hi && return v
     n = hi + 1 - lo
-    blocksize = isqrt(n)
-    buf = Vector{eltype(v)}(undef, 3blocksize)
-    nBlocks = n ÷ blocksize
-    blockLocation = Vector{Int}(undef, nBlocks+1)
-    pagedmergesort!(v, lo, hi, o, buf, blockLocation)
+    pagesize = isqrt(n)
+    buf = Vector{eltype(v)}(undef, 3pagesize)
+    nPages = n ÷ pagesize
+    pageLocations = Vector{Int}(undef, nPages+1)
+    pagedmergesort!(v, lo, hi, o, buf, pageLocations)
     return v
 end
 
 Base.@static if VERSION >= v"1.3"
 const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
-function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, o::Ordering, bufs, blockLocations, c::Channel, threadingThreshold::Integer)
+function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, o::Ordering, bufs, pageLocations, c::Channel, threadingThreshold::Integer)
     len = hi + 1 -lo
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
     m = midpoint(lo, hi-1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
     if len > threadingThreshold
-        thr = Threads.@spawn threaded_pagedmergesort!(v, lo, m, o, bufs, blockLocations, c, threadingThreshold)
-        threaded_pagedmergesort!(v, m+1, hi, o, bufs, blockLocations, c, threadingThreshold)
+        thr = Threads.@spawn threaded_pagedmergesort!(v, lo, m, o, bufs, pageLocations, c, threadingThreshold)
+        threaded_pagedmergesort!(v, m+1, hi, o, bufs, pageLocations, c, threadingThreshold)
         wait(thr)
         id = take!(c)
         buf = bufs[id]
-        blockLocation = blockLocations[id]
+        pageLocations = pageLocations[id]
     else
         id = take!(c)
         buf = bufs[id]
-        blockLocation = blockLocations[id]
-        pagedmergesort!(v, lo,  m, o,  buf, blockLocation)
-        pagedmergesort!(v, m+1, hi, o, buf, blockLocation)
+        pageLocations = pageLocations[id]
+        pagedmergesort!(v, lo,  m, o,  buf, pageLocations)
+        pagedmergesort!(v, m+1, hi, o, buf, pageLocations)
     end
     if len <= length(buf)
         twoended_merge!(v, lo, m, hi, o, buf)
     else
-        pagedMerge!(v, lo, m, hi, o, buf, blockLocation)
+        paged_merge!(v, lo, m, hi, o, buf, pageLocations)
     end
     put!(c, id)
     return v
@@ -1022,15 +1027,15 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::ThreadedPagedMerge
     nThreads=Threads.nthreads()
     (n < PAGEDMERGESORT_THREADING_THRESHOLD || nThreads < 2) && return sort!(v, lo, hi, PagedMergeSortAlg(), o)
     threadingThreshold = max(n ÷ 4nThreads, PAGEDMERGESORT_THREADING_THRESHOLD)
-    blocksize = isqrt(n)
-    nBlocks = n ÷ blocksize
-    bufs = [Vector{eltype(v)}(undef, 3blocksize) for _ in 1:nThreads] # allocate buffer for each thread
-    blockLocation = [Vector{Int}(undef, nBlocks+1) for _ in 1:nThreads]
+    pagesize = isqrt(n)
+    nPages = n ÷ pagesize
+    bufs = [Vector{eltype(v)}(undef, 3pagesize) for _ in 1:nThreads] # allocate buffer for each thread
+    pageLocations = [Vector{Int}(undef, nPages+1) for _ in 1:nThreads]
     c = Channel{Int}(nThreads) # channel holds indices of available buffers
     for i=1:nThreads
         put!(c, i)
     end
-    threaded_pagedmergesort!(v, lo, hi, o, bufs, blockLocation, c, threadingThreshold)
+    threaded_pagedmergesort!(v, lo, hi, o, bufs, pageLocations, c, threadingThreshold)
     return v
 end
 else
