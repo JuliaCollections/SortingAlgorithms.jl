@@ -777,23 +777,23 @@ function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::O
 end
 
 struct Pages
-    current::Int # current page being merged into
-    nextA::Int   # next possible page in A
-    nextB::Int   # next possible page in B
+    current::Int       # current page being merged into
+    currentNumber::Int # number of current page (=index in pageLocations)
+    nextA::Int         # next possible page in A
+    nextB::Int         # next possible page in B
 end
 
-next_page_A(pages::Pages) = Pages(pages.nextA, pages.nextA + 1, pages.nextB)
-next_page_B(pages::Pages) = Pages(pages.nextB, pages.nextA, pages.nextB + 1)
+next_page_A(pages::Pages) = Pages(pages.nextA, pages.currentNumber + 1, pages.nextA + 1, pages.nextB)
+next_page_B(pages::Pages) = Pages(pages.nextB, pages.currentNumber + 1, pages.nextA, pages.nextB + 1)
 
-function next_page!(pageLocations, pages, currentPageIndex, pagesize, lo, a)
+function next_page!(pageLocations, pages, pagesize, lo, a)
     if a > pages.nextA * pagesize + lo
         pages = next_page_A(pages)
     else
         pages = next_page_B(pages)
     end
-    pageLocations[currentPageIndex] = pages.current
-    currentPageIndex += 1
-    pages, currentPageIndex
+    pageLocations[pages.currentNumber] = pages.current
+    pages
 end
 
 # merge v[lo:m] (A) and v[m+1:hi] (B) using buffer buf in O(sqrt(n)) space
@@ -832,23 +832,23 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         # initialize variable for merging into pages
         pageLocations .= 0
         pageLocations[1:3] = -1:-1:-3
-        currentPageIndex = 4
         currentPage = 0
+        currentPageNumber = 3        
         nextPageA = 1
         nextPageB = (m + pagesize-lo) ÷ pagesize + 1
-        pages = Pages(currentPage, nextPageA, nextPageB)
+        pages = Pages(currentPage, currentPageNumber, nextPageA, nextPageB)
         k = 1
         # more efficient loop while more than pagesize elements of A and B are remaining
         while_condition1(offset) = (_,_,k) -> k <= offset + pagesize
         while a < m-pagesize && b < hi-pagesize
-            pages, currentPageIndex = next_page!(pageLocations, pages, currentPageIndex, pagesize, lo, a)
+            pages = next_page!(pageLocations, pages, pagesize, lo, a)
             offset = page_offset(pages.current)
             a,b,k = merge!(while_condition1(offset),v,v,v,o,a,b,offset+1)
         end
         # merge until either A or B is empty
         while_condition2(offset) = (a,b,k) -> k <= offset + pagesize && a <= m && b <= hi
         while a <= m && b <= hi
-            pages, currentPageIndex = next_page!(pageLocations, pages, currentPageIndex, pagesize, lo, a)
+            pages = next_page!(pageLocations, pages, pagesize, lo, a)
             offset = page_offset(pages.current)
             a,b,k = merge!(while_condition2(offset),v,v,v,o,a,b,offset+1)
         end
@@ -858,7 +858,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         # copy rest of A
         while a <= m
             if k_page > pagesize
-                pages, currentPageIndex = next_page!(pageLocations, pages, currentPageIndex, pagesize, lo, a)
+                pages = next_page!(pageLocations, pages, pagesize, lo, a)
                 k_page = 1
             end
             offset = page_offset(pages.current)
@@ -871,7 +871,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         # copy rest of B
         while b <= hi
             if k_page > pagesize
-                pages, currentPageIndex = next_page!(pageLocations, pages, currentPageIndex, pagesize, lo, a)
+                pages = next_page!(pageLocations, pages, pagesize, lo, a)
                 k_page = 1
             end
             offset = page_offset(pages.current)
@@ -889,7 +889,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
             for j = 1:k_page-1
                 v[offset2 + j] = v[offset + j]
             end
-            pageLocations[currentPageIndex-1] = 0
+            pageLocations[pages.currentNumber] = 0
         end
         #########################################
         # calculate location of the 3 free pages
@@ -912,7 +912,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         freePagesIndex = 3
         donePageIndex = 1
         # use currentPage instead of pages.current because
-        # pages.nextA and pages.nextB are no longer needed
+        # pages.nextA, pages.nextB and page.currentNumber are no longer needed
         currentPage = freePages[end]
         ##################
         # rearrange pages
