@@ -8,7 +8,6 @@ using Base.Order
 
 import Base.Sort: sort!
 import DataStructures: heapify!, percolate_down!
-import StaticArrays: MVector
 
 export HeapSort, TimSort, RadixSort, CombSort, PagedMergeSort, ThreadedPagedMergeSort
 
@@ -786,7 +785,7 @@ end
 next_page_A(pages::Pages) = Pages(pages.nextA, pages.currentNumber + 1, pages.nextA + 1, pages.nextB)
 next_page_B(pages::Pages) = Pages(pages.nextB, pages.currentNumber + 1, pages.nextA, pages.nextB + 1)
 
-function next_page!(pageLocations, pages, pagesize, lo, a)
+Base.@propagate_inbounds function next_page!(pageLocations, pages, pagesize, lo, a)
     if a > pages.nextA * pagesize + lo
         pages = next_page_A(pages)
     else
@@ -794,6 +793,31 @@ function next_page!(pageLocations, pages, pagesize, lo, a)
     end
     pageLocations[pages.currentNumber] = pages.current
     pages
+end
+
+Base.@propagate_inbounds function copy_page!(v, source, offset, offset2, pagesize)
+    for j = 1:pagesize
+        v[offset + j] = source[offset2 + j]
+    end
+end
+
+# copy correct data into free page currentPage,
+# following a permutation cycle until one page is copied from buf
+Base.@propagate_inbounds function copy_pages!(v, buf, pageLocations, currentPage, page_offset, pagesize)
+    while true
+        plc = pageLocations[currentPage] # page with data belonging to currentPage
+        pageLocations[currentPage] = 0
+        offset = page_offset(currentPage)
+        if plc > 0 # data for currentPage is in v
+            offset2 = page_offset(plc)
+            copy_page!(v, v, offset, offset2, pagesize)
+            currentPage = plc
+        else # data for currentPage is in buf
+            offset2 = (-plc-1)*pagesize
+            copy_page!(v, buf, offset, offset2, pagesize)
+            return
+        end
+    end
 end
 
 # merge v[lo:m] (A) and v[m+1:hi] (B) using buffer buf in O(sqrt(n)) space
@@ -829,7 +853,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         ##################
         # merge the first 3 pages into buf
         a,b,k = merge!((_,_,k) -> k<=3pagesize,buf,v,v,o,a,b,1)
-        # initialize variable for merging into pages
+        # initialize variables for merging into pages
         pageLocations .= 0
         pageLocations[1:3] = -1:-1:-3
         currentPage = 0
@@ -896,66 +920,51 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         #########################################
         nFreePagesB = nPages + 1 - pages.nextB
         nFreePagesA = 3 - nFreePagesB - Int(partialPagePresent)
-        freePages = MVector{3,Int}(undef)
-        i = 1
-        for j = 0:nFreePagesA-1
-            freePages[i] = pages.nextA + j
-            i += 1
-        end
-        for j = 0:nFreePagesB-1
-            freePages[i] = pages.nextB + j
-            i += 1
-        end
         if partialPagePresent
-            freePages[i] = pages.current
+            # nFreePagesA == 0 is impossible:
+            # the last page in A (partially in B) is always free
+            if nFreePagesA == 1
+                freePages = (pages.nextA, pages.nextB, pages.current)
+            else # nFreePagesA == 2
+                freePages = (pages.nextA, pages.nextA + 1, pages.current)
+            end
+        else
+            # nFreePagesA == 0 is impossible:
+            # next_page!() only uses nextA if there is MORE THAN one page free in A
+            # -> if there is exactly one page free in A, nextB is used
+            # nFreePagesA == 3 is impossible:
+            # B contains at least 3pagesize elements -> at least one free page will exist in B at some point
+            # next_page!() never uses nextB if there is more than one page free in A
+            if nFreePagesA == 1
+                freePages = (pages.nextA, pages.nextB, pages.nextB + 1)
+            else # nFreePagesA == 2
+                freePages = (pages.nextA, pages.nextA + 1, pages.nextB)
+            end
         end
-        freePagesIndex = 3
-        donePageIndex = 1
-        # use currentPage instead of pages.current because
-        # pages.nextA, pages.nextB and page.currentNumber are no longer needed
-        currentPage = freePages[end]
         ##################
         # rearrange pages
         ##################
+        # copy pages belonging to the 3 permutation chains ending with a page in the buffer
+        for currentPage in freePages
+            copy_pages!(v, buf, pageLocations, currentPage, page_offset, pagesize)
+        end
+        # copy remaining permutation cycles
+        donePageIndex = 1
         while true
-            plc = pageLocations[currentPage] # page with data belonging to currentPage
-            if plc > 0
-                # data for currentPage is in v
-                offset = page_offset(currentPage)
-                offset2 = page_offset(plc)
-                for j = 1:pagesize
-                    v[offset + j] = v[offset2 + j]
-                end
-                pageLocations[currentPage] = 0
-                currentPage = plc
-            else
-                # data for currentPage is in buf
-                offset = page_offset(currentPage)
-                offset2 = (-plc-1)*pagesize
-                for j = 1:pagesize
-                    v[offset + j] = buf[offset2 + j]
-                end
-                pageLocations[currentPage] = 0
-                if freePagesIndex > 1
-                    # get next free page
-                    freePagesIndex -= 1
-                    currentPage = freePages[freePagesIndex]
-                else
-                    # no free page remains
-                    # make sure that all pages are done
-                    while pageLocations[donePageIndex] == 0 || pageLocations[donePageIndex] == donePageIndex
-                        donePageIndex += 1
-                        donePageIndex == nPages && return
-                    end
-                    # copy misplaced page into buf and continue
-                    currentPage = pageLocations[donePageIndex]
-                    offset = page_offset(currentPage)
-                    for j = 1:pagesize
-                        buf[j] = v[offset + j]
-                    end
-                    pageLocations[donePageIndex] = -1
-                end
+            # linear scan through pageLocations to make sure no cycle is missed
+            while pageLocations[donePageIndex] == 0 || pageLocations[donePageIndex] == donePageIndex
+                donePageIndex += 1
+                donePageIndex == nPages && return
             end
+            # copy misplaced page into buf
+            # and follow the cycle starting with the newly freed page
+            currentPage = pageLocations[donePageIndex]
+            offset = page_offset(currentPage)
+            for j = 1:pagesize
+                buf[j] = v[offset + j]
+            end
+            pageLocations[donePageIndex] = -1
+            copy_pages!(v, buf, pageLocations, currentPage, page_offset, pagesize)
         end
     end
 end
