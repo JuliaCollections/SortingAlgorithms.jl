@@ -763,10 +763,8 @@ function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::O
             i +=1
             j +=1
         end
-        a, b = 1, m + 1
-        k = lo
         f(_,b,k) = k < b <= hi
-        a,b,k = merge!(f,v,t,v,o,a,b,k)
+        a,b,k = merge!(f,v,t,v,o,1,m+1,lo)
         while k < b
             v[k] = t[a]
             k += 1
@@ -782,42 +780,24 @@ struct Pages
     nextB::Int         # next possible page in B
 end
 
-next_page_A(pages::Pages) = Pages(pages.nextA, pages.currentNumber + 1, pages.nextA + 1, pages.nextB)
-next_page_B(pages::Pages) = Pages(pages.nextB, pages.currentNumber + 1, pages.nextA, pages.nextB + 1)
-
 Base.@propagate_inbounds function next_page!(pageLocations, pages, pagesize, lo, a)
-    if a > pages.nextA * pagesize + lo
-        pages = next_page_A(pages)
+    pages = if a > pages.nextA * pagesize + lo
+        Pages(pages.nextA, pages.currentNumber + 1, pages.nextA + 1, pages.nextB)
     else
-        pages = next_page_B(pages)
+        Pages(pages.nextB, pages.currentNumber + 1, pages.nextA, pages.nextB + 1)
     end
     pageLocations[pages.currentNumber] = pages.current
     pages
 end
 
-Base.@propagate_inbounds function copy_page!(v, source, offset, offset2, pagesize)
-    for j = 1:pagesize
-        v[offset + j] = source[offset2 + j]
+Base.@propagate_inbounds function permute_pages!(f, v, pageLocations, page_offset, pagesize, page)
+    while f(page)
+        plc = pageLocations[page-3] # plc has data belonging to page
+        pageLocations[page-3] = page
+        copyto!(v, page_offset(page)+1, v, page_offset(plc)+1, pagesize)
+        page = plc
     end
-end
-
-# copy correct data into free page currentPage,
-# following a permutation cycle until one page is copied from buf
-Base.@propagate_inbounds function copy_pages!(v, buf, pageLocations, currentPage, page_offset, pagesize)
-    while true
-        plc = pageLocations[currentPage] # page with data belonging to currentPage
-        pageLocations[currentPage] = 0
-        offset = page_offset(currentPage)
-        if plc > 0 # data for currentPage is in v
-            offset2 = page_offset(plc)
-            copy_page!(v, v, offset, offset2, pagesize)
-            currentPage = plc
-        else # data for currentPage is in buf
-            offset2 = (-plc-1)*pagesize
-            copy_page!(v, buf, offset, offset2, pagesize)
-            return
-        end
-    end
+    page
 end
 
 # merge v[lo:m] (A) and v[m+1:hi] (B) using buffer buf in O(sqrt(n)) space
@@ -841,9 +821,9 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
 
     len = lenA + lenB
     pagesize = isqrt(len)
-    nPages = len ÷ pagesize
+    nPages = len ÷ pagesize # a partial page at the end does not count
     @assert length(buf) >= 3pagesize
-    @assert length(pageLocations) >= nPages + 1
+    @assert length(pageLocations) >= nPages - 3
 
     @inline page_offset(page) = (page-1)*pagesize + lo - 1
 
@@ -852,119 +832,72 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         # merge
         ##################
         # merge the first 3 pages into buf
-        a,b,k = merge!((_,_,k) -> k<=3pagesize,buf,v,v,o,a,b,1)
+        a,b,_ = merge!((_,_,k) -> k<=3pagesize,buf,v,v,o,a,b,1)
         # initialize variables for merging into pages
-        pageLocations .= 0
-        pageLocations[1:3] = -1:-1:-3
-        currentPage = 0
-        currentPageNumber = 3        
-        nextPageA = 1
-        nextPageB = (m + pagesize-lo) ÷ pagesize + 1
-        pages = Pages(currentPage, currentPageNumber, nextPageA, nextPageB)
-        k = 1
+        pages = Pages(-17, 0, 1, (m-lo) ÷ pagesize + 2) # first argument is unused
         # more efficient loop while more than pagesize elements of A and B are remaining
         while_condition1(offset) = (_,_,k) -> k <= offset + pagesize
         while a < m-pagesize && b < hi-pagesize
             pages = next_page!(pageLocations, pages, pagesize, lo, a)
             offset = page_offset(pages.current)
-            a,b,k = merge!(while_condition1(offset),v,v,v,o,a,b,offset+1)
+            a,b,_ = merge!(while_condition1(offset),v,v,v,o,a,b,offset+1)
         end
-        # merge until either A or B is empty
+        # merge until either A or B is empty or the last page is reached
+        k, offset = nothing, nothing
         while_condition2(offset) = (a,b,k) -> k <= offset + pagesize && a <= m && b <= hi
-        while a <= m && b <= hi
+        while a <= m && b <= hi && pages.currentNumber + 3 < nPages
             pages = next_page!(pageLocations, pages, pagesize, lo, a)
             offset = page_offset(pages.current)
             a,b,k = merge!(while_condition2(offset),v,v,v,o,a,b,offset+1)
         end
-        k_page = k - page_offset(pages.current)
-        # copy remaining elements
-        # either A or B is empty
-        # copy rest of A
-        while a <= m
-            if k_page > pagesize
-                pages = next_page!(pageLocations, pages, pagesize, lo, a)
-                k_page = 1
-            end
-            offset = page_offset(pages.current)
-            while k_page <= pagesize && a <= m
-                v[offset + k_page] = v[a]
-                a += 1
-                k_page += 1
-            end
-        end
-        # copy rest of B
-        while b <= hi
-            if k_page > pagesize
-                pages = next_page!(pageLocations, pages, pagesize, lo, a)
-                k_page = 1
-            end
-            offset = page_offset(pages.current)
-            while k_page <= pagesize && b <= hi
-                v[offset + k_page] = v[b]
-                b += 1
-                k_page += 1
-            end
-        end
-        # copy last partial page to end
-        partialPagePresent = k_page <= pagesize
-        if partialPagePresent
-            offset = page_offset(pages.current)
-            offset2 = nPages*pagesize + lo - 1
-            for j = 1:k_page-1
-                v[offset2 + j] = v[offset + j]
-            end
-            pageLocations[pages.currentNumber] = 0
-        end
-        #########################################
-        # calculate location of the 3 free pages
-        #########################################
-        nFreePagesB = nPages + 1 - pages.nextB
-        nFreePagesA = 3 - nFreePagesB - Int(partialPagePresent)
-        if partialPagePresent
-            # nFreePagesA == 0 is impossible:
-            # the last page in A (partially in B) is always free
-            if nFreePagesA == 1
-                freePages = (pages.nextA, pages.nextB, pages.current)
-            else # nFreePagesA == 2
-                freePages = (pages.nextA, pages.nextA + 1, pages.current)
-            end
+        # if the last page is reached, merge the remaining elements into the final partial page
+        if pages.currentNumber + 3 == nPages && a <= m && b <= hi
+            a,b,k = merge!((a,b,_) -> a <= m && b <= hi,v,v,v,o,a,b,nPages*pagesize+lo)
+            copyto!(v, k, v, a <= m ? a : b, hi-k+1)
         else
-            # nFreePagesA == 0 is impossible:
-            # next_page!() only uses nextA if there is MORE THAN one page free in A
-            # -> if there is exactly one page free in A, nextB is used
-            # nFreePagesA == 3 is impossible:
-            # B contains at least 3pagesize elements -> at least one free page will exist in B at some point
-            # next_page!() never uses nextB if there is more than one page free in A
-            if nFreePagesA == 1
-                freePages = (pages.nextA, pages.nextB, pages.nextB + 1)
-            else # nFreePagesA == 2
-                freePages = (pages.nextA, pages.nextA + 1, pages.nextB)
+            use_a = a <= m
+            # copy the incomplete page
+            amt = offset + pagesize - k + 1
+            copyto!(v, k, v, use_a ? a : b, amt)
+            use_a && (a += amt)
+            use_a || (b += amt)
+            # copy the remaining full pages
+            while use_a ? a <= m - pagesize + 1 : b <= hi - pagesize + 1
+                pages = next_page!(pageLocations, pages, pagesize, lo, a)
+                offset = page_offset(pages.current)
+                copyto!(v, offset+1, v, use_a ? a : b, pagesize)
+                use_a && (a += pagesize)
+                use_a || (b += pagesize)
             end
+            # copy the final partial page only if sourcing from A.
+            # If sourcing from B, it is already in place.
+            use_a && copyto!(v, hi - m + a, v, a, m - a + 1)
         end
+        # return vcat(v, 40, buf)
         ##################
         # rearrange pages
         ##################
         # copy pages belonging to the 3 permutation chains ending with a page in the buffer
-        for currentPage in freePages
-            copy_pages!(v, buf, pageLocations, currentPage, page_offset, pagesize)
+        nextA, nextB = pages.nextA, pages.nextB
+
+        for _ in 1:3
+            page = (nextB > nPages ? (nextA += 1) : (nextB += 1)) - 1
+            page = permute_pages!(>(3), v, pageLocations, page_offset, pagesize, page)
+            copyto!(v, page_offset(page)+1, buf, (page-1)*pagesize+1, pagesize)
         end
+
         # copy remaining permutation cycles
-        donePageIndex = 1
-        while true
+        for donePageIndex = 5:nPages
             # linear scan through pageLocations to make sure no cycle is missed
-            while pageLocations[donePageIndex] == 0 || pageLocations[donePageIndex] == donePageIndex
-                donePageIndex += 1
-                donePageIndex == nPages && return
-            end
-            # copy misplaced page into buf
-            # and follow the cycle starting with the newly freed page
-            currentPage = pageLocations[donePageIndex]
-            offset = page_offset(currentPage)
-            for j = 1:pagesize
-                buf[j] = v[offset + j]
-            end
-            pageLocations[donePageIndex] = -1
-            copy_pages!(v, buf, pageLocations, currentPage, page_offset, pagesize)
+            page = pageLocations[donePageIndex-3]
+            page == donePageIndex && continue
+
+            # copy the data belonging to donePageIndex into buf
+            copyto!(buf, 1, v, page_offset(page)+1, pagesize)
+
+            # follow the cycle starting with the newly freed page
+            permute_pages!(!=(donePageIndex), v, pageLocations, page_offset, pagesize, page)
+            copyto!(v, page_offset(donePageIndex)+1, buf, 1, pagesize)
         end
     end
 end
@@ -995,7 +928,7 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::PagedMergeSortAlg,
     pagesize = isqrt(n)
     buf = Vector{eltype(v)}(undef, 3pagesize)
     nPages = n ÷ pagesize
-    pageLocations = Vector{Int}(undef, nPages+1)
+    pageLocations = Vector{Int}(undef, nPages-3)
     pagedmergesort!(v, lo, hi, o, buf, pageLocations)
     return v
 end
