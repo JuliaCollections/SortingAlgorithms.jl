@@ -22,7 +22,7 @@ end
 const HeapSort  = maybe_optimize(HeapSortAlg())
 const TimSort   = maybe_optimize(TimSortAlg())
 # Whenever InitialOptimizations is defined, RadixSort falls 
-# back to Base.DEFAULT_STABLE which already incldues them.
+# back to Base.DEFAULT_STABLE which already includes them.
 const RadixSort = RadixSortAlg()
 
 """
