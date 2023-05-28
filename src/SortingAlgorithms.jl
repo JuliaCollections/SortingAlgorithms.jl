@@ -780,11 +780,14 @@ struct Pages
     nextB::Int         # next possible page in B
 end
 
+next_page_A(pages::Pages) = Pages(pages.nextA, pages.currentNumber + 1, pages.nextA + 1, pages.nextB)
+next_page_B(pages::Pages) = Pages(pages.nextB, pages.currentNumber + 1, pages.nextA, pages.nextB + 1)
+
 Base.@propagate_inbounds function next_page!(pageLocations, pages, pagesize, lo, a)
-    pages = if a > pages.nextA * pagesize + lo
-        Pages(pages.nextA, pages.currentNumber + 1, pages.nextA + 1, pages.nextB)
+    if a > pages.nextA * pagesize + lo
+        pages = next_page_A(pages)
     else
-        Pages(pages.nextB, pages.currentNumber + 1, pages.nextA, pages.nextB + 1)
+        pages = next_page_B(pages)
     end
     pageLocations[pages.currentNumber] = pages.current
     pages
@@ -857,10 +860,10 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         else
             use_a = a <= m
             # copy the incomplete page
-            amt = offset + pagesize - k + 1
-            copyto!(v, k, v, use_a ? a : b, amt)
-            use_a && (a += amt)
-            use_a || (b += amt)
+            partial_page_size = offset + pagesize - k + 1
+            copyto!(v, k, v, use_a ? a : b, partial_page_size)
+            use_a && (a += partial_page_size)
+            use_a || (b += partial_page_size)
             # copy the remaining full pages
             while use_a ? a <= m - pagesize + 1 : b <= hi - pagesize + 1
                 pages = next_page!(pageLocations, pages, pagesize, lo, a)
@@ -873,7 +876,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
             # If sourcing from B, it is already in place.
             use_a && copyto!(v, hi - m + a, v, a, m - a + 1)
         end
-        # return vcat(v, 40, buf)
+
         ##################
         # rearrange pages
         ##################
