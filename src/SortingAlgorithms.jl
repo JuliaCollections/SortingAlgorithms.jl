@@ -79,7 +79,7 @@ end
 #
 # Original author: @kmsquire
 
-if v"1.9.0-alpha" <= VERSION <= v"1.9.1"
+@static if v"1.9.0-alpha" <= VERSION <= v"1.9.1"
     function Base.getindex(v::Base.Sort.WithoutMissingVector, i::UnitRange)
         out = Vector{eltype(v)}(undef, length(i))
         out .= v.data[i]
