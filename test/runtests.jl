@@ -4,14 +4,18 @@ using StatsBase
 using Random
 
 a = rand(1:10000, 1000)
+am = [rand() < .9 ? i : missing for i in a]
 
-for alg in [TimSort, HeapSort, RadixSort, CombSort]
+for alg in [TimSort, HeapSort, RadixSort, CombSort, SortingAlgorithms.TimSortAlg()]
     b = sort(a, alg=alg)
     @test issorted(b)
     ix = sortperm(a, alg=alg)
     b = a[ix]
     @test issorted(b)
     @test a[ix] == b
+
+    # legacy 3-argument calling convention
+    @test b == sort!(copy(a), alg, Base.Order.Forward)
 
     b = sort(a, alg=alg, rev=true)
     @test issorted(b, rev=true)
@@ -34,9 +38,26 @@ for alg in [TimSort, HeapSort, RadixSort, CombSort]
     invpermute!(c, ix)
     @test c == a
 
-    if alg != RadixSort  # RadixSort does not work with Lt orderings
+    if alg != RadixSort  # RadixSort does not work with Lt orderings or missing
         c = sort(a, alg=alg, lt=(>))
         @test b == c
+
+        # Issue https://github.com/JuliaData/DataFrames.jl/issues/3340
+        bm1 = sort(am, alg=alg)
+        @test issorted(bm1)
+        @test count(ismissing, bm1) == count(ismissing, am)
+
+        bm2 = am[sortperm(am, alg=alg)]
+        @test issorted(bm2)
+        @test count(ismissing, bm2) == count(ismissing, am)
+
+        bm3 = am[sortperm!(collect(eachindex(am)), am, alg=alg)]
+        @test issorted(bm3)
+        @test count(ismissing, bm3) == count(ismissing, am)
+
+        if alg == TimSort # Stable
+            @test all(bm1 .=== bm2 .=== bm3)
+        end
     end
 
     c = sort(a, alg=alg, by=x->1/x)
@@ -103,8 +124,8 @@ for n in [0:10..., 100, 101, 1000, 1001]
         # test float sorting with NaNs
         s = sort(v, alg=alg, order=ord)
         @test issorted(s, order=ord)
-        
-        # This tests that NaNs (which compare equivalent) are treated stably 
+
+        # This tests that NaNs (which compare equivalent) are treated stably
         # even when the underlying algorithm is unstable. That it happens to
         # pass is not a part of the public API:
         @test reinterpret(UInt64, v[map(isnan, v)]) == reinterpret(UInt64, s[map(isnan, s)])
