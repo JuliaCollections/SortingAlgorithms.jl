@@ -88,6 +88,14 @@ if v"1.9.0-alpha" <= VERSION <= v"1.9.1"
 
     # skip MissingOptimization due to JuliaLang/julia#50171
     const _FIVE_ARG_SAFE_DEFAULT_STABLE = Base.DEFAULT_STABLE.next
+
+    # Explicitly define conversion from _sort!(v, alg, order, kw) to sort!(v, lo, hi, alg, order)
+    # To avoid excessively strict dispatch loop detection
+    function Base.Sort._sort!(v::AbstractVector, a::Union{HeapSortAlg, TimSortAlg, RadixSortAlg, CombSortAlg}, o::Base.Order.Ordering, kw)
+        Base.Sort.@getkw lo hi scratch
+        sort!(v, lo, hi, a, o)
+        scratch
+    end
 else
     const _FIVE_ARG_SAFE_DEFAULT_STABLE = Base.DEFAULT_STABLE
 end

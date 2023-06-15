@@ -14,6 +14,9 @@ for alg in [TimSort, HeapSort, RadixSort, CombSort, SortingAlgorithms.TimSortAlg
     @test issorted(b)
     @test a[ix] == b
 
+    # legacy 3-argument calling convention
+    @test b == sort!(copy(a), alg, Base.Order.Forward)
+
     b = sort(a, alg=alg, rev=true)
     @test issorted(b, rev=true)
     ix = sortperm(a, alg=alg, rev=true)
