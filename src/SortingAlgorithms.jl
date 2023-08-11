@@ -928,9 +928,6 @@ Base.@static if VERSION >= v"1.3"
     const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
     function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, o::Ordering, bufs, pageLocations, c::Channel, threadingThreshold::Integer)
         len = hi + 1 - lo
-        if len <= Base.SMALL_THRESHOLD
-            return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
-        end
         m = midpoint(lo, hi - 1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
         if len > threadingThreshold
             thr = Threads.@spawn threaded_pagedmergesort!(v, lo, m, o, bufs, pageLocations, c, threadingThreshold)
