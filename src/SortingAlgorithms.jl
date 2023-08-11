@@ -925,52 +925,52 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::PagedMergeSortAlg,
 end
 
 Base.@static if VERSION >= v"1.3"
-const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
-function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, o::Ordering, bufs, pageLocations, c::Channel, threadingThreshold::Integer)
-    len = hi + 1 - lo
-    if len <= Base.SMALL_THRESHOLD
-        return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
+    const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
+    function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, o::Ordering, bufs, pageLocations, c::Channel, threadingThreshold::Integer)
+        len = hi + 1 - lo
+        if len <= Base.SMALL_THRESHOLD
+            return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
+        end
+        m = midpoint(lo, hi - 1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
+        if len > threadingThreshold
+            thr = Threads.@spawn threaded_pagedmergesort!(v, lo, m, o, bufs, pageLocations, c, threadingThreshold)
+            threaded_pagedmergesort!(v, m + 1, hi, o, bufs, pageLocations, c, threadingThreshold)
+            wait(thr)
+            id = take!(c)
+            buf = bufs[id]
+            pageLocations = pageLocations[id]
+        else
+            id = take!(c)
+            buf = bufs[id]
+            pageLocations = pageLocations[id]
+            pagedmergesort!(v, lo, m, o, buf, pageLocations)
+            pagedmergesort!(v, m + 1, hi, o, buf, pageLocations)
+        end
+        if len <= length(buf)
+            twoended_merge!(v, lo, m, hi, o, buf)
+        else
+            paged_merge!(v, lo, m, hi, o, buf, pageLocations)
+        end
+        put!(c, id)
+        return v
     end
-    m = midpoint(lo, hi-1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
-    if len > threadingThreshold
-        thr = Threads.@spawn threaded_pagedmergesort!(v, lo, m, o, bufs, pageLocations, c, threadingThreshold)
-        threaded_pagedmergesort!(v, m+1, hi, o, bufs, pageLocations, c, threadingThreshold)
-        wait(thr)
-        id = take!(c)
-        buf = bufs[id]
-        pageLocations = pageLocations[id]
-    else
-        id = take!(c)
-        buf = bufs[id]
-        pageLocations = pageLocations[id]
-        pagedmergesort!(v, lo,  m, o,  buf, pageLocations)
-        pagedmergesort!(v, m+1, hi, o, buf, pageLocations)
+    function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::ThreadedPagedMergeSortAlg, o::Ordering)
+        lo >= hi && return v
+        n = hi + 1 - lo
+        nThreads = Threads.nthreads()
+        (n < PAGEDMERGESORT_THREADING_THRESHOLD || nThreads < 2) && return sort!(v, lo, hi, PagedMergeSortAlg(), o)
+        threadingThreshold = max(n ÷ 4nThreads, PAGEDMERGESORT_THREADING_THRESHOLD)
+        pagesize = isqrt(n)
+        nPages = n ÷ pagesize
+        bufs = [Vector{eltype(v)}(undef, 3pagesize) for _ in 1:nThreads] # allocate buffer for each thread
+        pageLocations = [Vector{Int}(undef, nPages + 1) for _ in 1:nThreads]
+        c = Channel{Int}(nThreads) # channel holds indices of available buffers
+        for i = 1:nThreads
+            put!(c, i)
+        end
+        threaded_pagedmergesort!(v, lo, hi, o, bufs, pageLocations, c, threadingThreshold)
+        return v
     end
-    if len <= length(buf)
-        twoended_merge!(v, lo, m, hi, o, buf)
-    else
-        paged_merge!(v, lo, m, hi, o, buf, pageLocations)
-    end
-    put!(c, id)
-    return v
-end
-function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::ThreadedPagedMergeSortAlg, o::Ordering)
-    lo >= hi && return v
-    n = hi + 1 - lo
-    nThreads=Threads.nthreads()
-    (n < PAGEDMERGESORT_THREADING_THRESHOLD || nThreads < 2) && return sort!(v, lo, hi, PagedMergeSortAlg(), o)
-    threadingThreshold = max(n ÷ 4nThreads, PAGEDMERGESORT_THREADING_THRESHOLD)
-    pagesize = isqrt(n)
-    nPages = n ÷ pagesize
-    bufs = [Vector{eltype(v)}(undef, 3pagesize) for _ in 1:nThreads] # allocate buffer for each thread
-    pageLocations = [Vector{Int}(undef, nPages+1) for _ in 1:nThreads]
-    c = Channel{Int}(nThreads) # channel holds indices of available buffers
-    for i=1:nThreads
-        put!(c, i)
-    end
-    threaded_pagedmergesort!(v, lo, hi, o, bufs, pageLocations, c, threadingThreshold)
-    return v
-end
 else
     # use single threaded function when VERSION < v"1.3"
     sort!(v::AbstractVector, lo::Integer, hi::Integer, ::ThreadedPagedMergeSortAlg, o::Ordering) = sort!(v, lo, hi, PagedMergeSort, o)
