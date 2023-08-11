@@ -740,7 +740,7 @@ end
 Base.@propagate_inbounds function merge!(f::Function,
     target::AbstractVector{T}, source_a::AbstractVector{T}, source_b::AbstractVector{T},
     o::Ordering, a::Integer, b::Integer, k::Integer) where T
-    while f(a,b,k)
+    @inbounds while f(a,b,k)
         if lt(o, source_b[b], source_a[a])
             target[k] = source_b[b]
             b += 1
@@ -756,21 +756,15 @@ end
 # merge v[lo:m] and v[m+1:hi] using buffer t[1:1+m-lo]
 # based on Base.Sort MergeSort
 function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, t::AbstractVector{T}) where T
-    @inbounds begin
-        i, j = 1, lo
-        while j <= m
-            t[i] = v[j]
-            i +=1
-            j +=1
-        end
-        f(_,b,k) = k < b <= hi
-        a,b,k = merge!(f,v,t,v,o,1,m+1,lo)
-        while k < b
-            v[k] = t[a]
-            k += 1
-            a += 1
-        end
-    end
+    copyto!(t, 1, v, lo, m-lo+1)
+    f(_,b,k) = k < b <= hi
+    a,b,k = merge!(f, v, t, v, o, 1, m+1, lo)
+    copyto!(v, k, t, a, b-k)
+    #while k < b
+    #    v[k] = t[a]
+    #    k += 1
+    #    a += 1
+    #end
 end
 
 struct Pages
@@ -806,8 +800,6 @@ end
 # merge v[lo:m] (A) and v[m+1:hi] (B) using buffer buf in O(sqrt(n)) space
 function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, pageLocations::AbstractVector{<:Integer}) where T
     @assert lo < m < hi
-    a = lo
-    b = m + 1
     lenA = 1 + m - lo
     lenB = hi - m
 
@@ -831,7 +823,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         # merge
         ##################
         # merge the first 3 pages into buf
-        a,b,_ = merge!((_,_,k) -> k<=3pagesize,buf,v,v,o,a,b,1)
+        a,b,_ = merge!((_,_,k) -> k<=3pagesize,buf,v,v,o,lo,m+1,1)
         # initialize variables for merging into pages
         pages = Pages(-17, 0, 1, (m-lo) ÷ pagesize + 2) # first argument is unused
         # more efficient loop while more than pagesize elements of A and B are remaining
@@ -935,7 +927,7 @@ end
 Base.@static if VERSION >= v"1.3"
 const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
 function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, o::Ordering, bufs, pageLocations, c::Channel, threadingThreshold::Integer)
-    len = hi + 1 -lo
+    len = hi + 1 - lo
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
