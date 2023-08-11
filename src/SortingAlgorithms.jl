@@ -811,16 +811,12 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
     lenA = 1 + m - lo
     lenB = hi - m
 
+    # this function only supports merges with length(A) <= length(B),
+    # which is guaranteed by pagedmergesort!
+    @assert lenA <= lenB
+    
     # regular merge if buffer is big enough
-    if lenA <= length(buf)
-        merge!(v, lo, m, hi, o, buf)
-        return
-    elseif lenB <= length(buf)
-        # TODO ?
-        # does not occur in balanced mergesort where length(A) <= length(B)
-        error("not implemented")
-        return
-    end
+    lenA <= length(buf) && return merge!(v, lo, m, hi, o, buf)
 
     len = lenA + lenB
     pagesize = isqrt(len)
