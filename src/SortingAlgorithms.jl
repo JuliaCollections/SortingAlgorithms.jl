@@ -755,16 +755,11 @@ end
 
 # merge v[lo:m] and v[m+1:hi] using buffer t[1:1+m-lo]
 # based on Base.Sort MergeSort
-function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, t::AbstractVector{T}) where T
-    copyto!(t, 1, v, lo, m-lo+1)
-    f(_,b,k) = k < b <= hi
-    a,b,k = merge!(f, v, t, v, o, 1, m+1, lo)
-    copyto!(v, k, t, a, b-k)
-    #while k < b
-    #    v[k] = t[a]
-    #    k += 1
-    #    a += 1
-    #end
+function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, t::AbstractVector{T}) where {T}
+    copyto!(t, 1, v, lo, m - lo + 1)
+    f(_, b, k) = k < b <= hi
+    a, b, k = merge!(f, v, t, v, o, 1, m + 1, lo)
+    copyto!(v, k, t, a, b - k)
 end
 
 struct Pages
@@ -791,14 +786,14 @@ Base.@propagate_inbounds function permute_pages!(f, v, pageLocations, page_offse
     while f(page)
         plc = pageLocations[page-3] # plc has data belonging to page
         pageLocations[page-3] = page
-        copyto!(v, page_offset(page)+1, v, page_offset(plc)+1, pagesize)
+        copyto!(v, page_offset(page) + 1, v, page_offset(plc) + 1, pagesize)
         page = plc
     end
     page
 end
 
 # merge v[lo:m] (A) and v[m+1:hi] (B) using buffer buf in O(sqrt(n)) space
-function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, pageLocations::AbstractVector{<:Integer}) where T
+function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, pageLocations::AbstractVector{<:Integer}) where {T}
     @assert lo < m < hi
     lenA = 1 + m - lo
     lenB = hi - m
@@ -806,7 +801,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
     # this function only supports merges with length(A) <= length(B),
     # which is guaranteed by pagedmergesort!
     @assert lenA <= lenB
-    
+
     # regular merge if buffer is big enough
     lenA <= length(buf) && return merge!(v, lo, m, hi, o, buf)
 
@@ -816,35 +811,35 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
     @assert length(buf) >= 3pagesize
     @assert length(pageLocations) >= nPages - 3
 
-    @inline page_offset(page) = (page-1)*pagesize + lo - 1
+    @inline page_offset(page) = (page - 1) * pagesize + lo - 1
 
     @inbounds begin
         ##################
         # merge
         ##################
         # merge the first 3 pages into buf
-        a,b,_ = merge!((_,_,k) -> k<=3pagesize,buf,v,v,o,lo,m+1,1)
+        a, b, _ = merge!((_, _, k) -> k <= 3pagesize, buf, v, v, o, lo, m + 1, 1)
         # initialize variables for merging into pages
-        pages = Pages(-17, 0, 1, (m-lo) ÷ pagesize + 2) # first argument is unused
+        pages = Pages(-17, 0, 1, (m - lo) ÷ pagesize + 2) # first argument is unused
         # more efficient loop while more than pagesize elements of A and B are remaining
-        while_condition1(offset) = (_,_,k) -> k <= offset + pagesize
-        while a < m-pagesize && b < hi-pagesize
+        while_condition1(offset) = (_, _, k) -> k <= offset + pagesize
+        while a < m - pagesize && b < hi - pagesize
             pages = next_page!(pageLocations, pages, pagesize, lo, a)
             offset = page_offset(pages.current)
-            a,b,_ = merge!(while_condition1(offset),v,v,v,o,a,b,offset+1)
+            a, b, _ = merge!(while_condition1(offset), v, v, v, o, a, b, offset + 1)
         end
         # merge until either A or B is empty or the last page is reached
         k, offset = nothing, nothing
-        while_condition2(offset) = (a,b,k) -> k <= offset + pagesize && a <= m && b <= hi
+        while_condition2(offset) = (a, b, k) -> k <= offset + pagesize && a <= m && b <= hi
         while a <= m && b <= hi && pages.currentNumber + 3 < nPages
             pages = next_page!(pageLocations, pages, pagesize, lo, a)
             offset = page_offset(pages.current)
-            a,b,k = merge!(while_condition2(offset),v,v,v,o,a,b,offset+1)
+            a, b, k = merge!(while_condition2(offset), v, v, v, o, a, b, offset + 1)
         end
         # if the last page is reached, merge the remaining elements into the final partial page
         if pages.currentNumber + 3 == nPages && a <= m && b <= hi
-            a,b,k = merge!((a,b,_) -> a <= m && b <= hi,v,v,v,o,a,b,nPages*pagesize+lo)
-            copyto!(v, k, v, a <= m ? a : b, hi-k+1)
+            a, b, k = merge!((a, b, _) -> a <= m && b <= hi, v, v, v, o, a, b, nPages * pagesize + lo)
+            copyto!(v, k, v, a <= m ? a : b, hi - k + 1)
         else
             use_a = a <= m
             # copy the incomplete page
@@ -856,7 +851,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
             while use_a ? a <= m - pagesize + 1 : b <= hi - pagesize + 1
                 pages = next_page!(pageLocations, pages, pagesize, lo, a)
                 offset = page_offset(pages.current)
-                copyto!(v, offset+1, v, use_a ? a : b, pagesize)
+                copyto!(v, offset + 1, v, use_a ? a : b, pagesize)
                 use_a && (a += pagesize)
                 use_a || (b += pagesize)
             end
@@ -874,7 +869,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         for _ in 1:3
             page = (nextB > nPages ? (nextA += 1) : (nextB += 1)) - 1
             page = permute_pages!(>(3), v, pageLocations, page_offset, pagesize, page)
-            copyto!(v, page_offset(page)+1, buf, (page-1)*pagesize+1, pagesize)
+            copyto!(v, page_offset(page) + 1, buf, (page - 1) * pagesize + 1, pagesize)
         end
 
         # copy remaining permutation cycles
@@ -884,11 +879,11 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
             page == donePageIndex && continue
 
             # copy the data belonging to donePageIndex into buf
-            copyto!(buf, 1, v, page_offset(page)+1, pagesize)
+            copyto!(buf, 1, v, page_offset(page) + 1, pagesize)
 
             # follow the cycle starting with the newly freed page
             permute_pages!(!=(donePageIndex), v, pageLocations, page_offset, pagesize, page)
-            copyto!(v, page_offset(donePageIndex)+1, buf, 1, pagesize)
+            copyto!(v, page_offset(donePageIndex) + 1, buf, 1, pagesize)
         end
     end
 end
@@ -897,14 +892,14 @@ end
 # -> redefine for compatibility with earlier versions
 midpoint(lo::Integer, hi::Integer) = lo + ((hi - lo) >>> 0x01)
 
-function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, pageLocations) where T
+function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, pageLocations) where {T}
     len = hi + 1 - lo
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
-    m = midpoint(lo, hi-1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
+    m = midpoint(lo, hi - 1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
     pagedmergesort!(v, lo, m, o, buf, pageLocations)
-    pagedmergesort!(v, m+1, hi, o, buf, pageLocations)
+    pagedmergesort!(v, m + 1, hi, o, buf, pageLocations)
     if len <= length(buf)
         twoended_merge!(v, lo, m, hi, o, buf)
     else
@@ -919,7 +914,7 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::PagedMergeSortAlg,
     pagesize = isqrt(n)
     buf = Vector{eltype(v)}(undef, 3pagesize)
     nPages = n ÷ pagesize
-    pageLocations = Vector{Int}(undef, nPages-3)
+    pageLocations = Vector{Int}(undef, nPages - 3)
     pagedmergesort!(v, lo, hi, o, buf, pageLocations)
     return v
 end
