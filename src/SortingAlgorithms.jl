@@ -664,9 +664,9 @@ end
 # PagedMergeSort
 ###
 
-# merge v[lo:m] and v[m+1:hi] ([A;B]) using buffer t[1:1+hi-lo]
+# merge v[lo:m] and v[m+1:hi] ([A;B]) using scratch[1:1+hi-lo]
 # This is faster than merge! but requires twice as much auxiliary memory.
-function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, t::AbstractVector{T}) where T
+function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, scratch::AbstractVector{T}) where T
     @assert lo ≤ m ≤ hi
     @assert abs((m-lo) - (hi-(m+1))) ≤ 1 "twoended_merge! only supports balanced merges"
     len = 1 + hi - lo
@@ -682,18 +682,18 @@ function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Inte
         # two ended merge
         while k_lo <= len ÷ 2
             if lt(o, v[b_lo], v[a_lo])
-                t[k_lo] = v[b_lo]
+                scratch[k_lo] = v[b_lo]
                 b_lo += 1
             else
-                t[k_lo] = v[a_lo]
+                scratch[k_lo] = v[a_lo]
                 a_lo += 1
             end
             k_lo +=1
             if !lt(o, v[b_hi], v[a_hi])
-                t[k_hi] = v[b_hi]
+                scratch[k_hi] = v[b_hi]
                 b_hi -= 1
             else
-                t[k_hi] = v[a_hi]
+                scratch[k_hi] = v[a_hi]
                 a_hi -= 1
             end
             k_hi -=1
@@ -701,14 +701,14 @@ function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Inte
         # if the input length is odd,
         # one item remains
         if a_lo <= a_hi
-            t[k_lo] = v[a_lo]
+            scratch[k_lo] = v[a_lo]
         elseif b_lo <= b_hi
-            t[k_lo] = v[b_lo]
+            scratch[k_lo] = v[b_lo]
         end
         # copy back from t to v
         offset = lo-1
         for i = 1:len
-            v[offset+i] = t[i]
+            v[offset+i] = scratch[i]
         end
     end
 end
@@ -730,13 +730,13 @@ Base.@propagate_inbounds function merge!(f::Function,
     a,b,k
 end
 
-# merge v[lo:m] and v[m+1:hi] using buffer t[1:1+m-lo]
+# merge v[lo:m] and v[m+1:hi] using scratch[1:1+m-lo]
 # based on Base.Sort MergeSort
-function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, t::AbstractVector{T}) where {T}
-    copyto!(t, 1, v, lo, m - lo + 1)
+function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, scratch::AbstractVector{T}) where {T}
+    copyto!(scratch, 1, v, lo, m - lo + 1)
     f(_, b, k) = k < b <= hi
-    a, b, k = merge!(f, v, t, v, o, 1, m + 1, lo)
-    copyto!(v, k, t, a, b - k)
+    a, b, k = merge!(f, v, scratch, v, o, 1, m + 1, lo)
+    copyto!(v, k, scratch, a, b - k)
 end
 
 struct Pages
@@ -769,8 +769,8 @@ Base.@propagate_inbounds function permute_pages!(f, v, pageLocations, page_offse
     page
 end
 
-# merge v[lo:m] (A) and v[m+1:hi] (B) using buffer buf in O(sqrt(n)) space
-function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, pageLocations::AbstractVector{<:Integer}) where {T}
+# merge v[lo:m] (A) and v[m+1:hi] (B) using scratch[] in O(sqrt(n)) space
+function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, scratch::AbstractVector{T}, pageLocations::AbstractVector{<:Integer}) where {T}
     @assert lo < m < hi
     lenA = 1 + m - lo
     lenB = hi - m
@@ -779,13 +779,13 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
     # which is guaranteed by pagedmergesort!
     @assert lenA <= lenB
 
-    # regular merge if buffer is big enough
-    lenA <= length(buf) && return merge!(v, lo, m, hi, o, buf)
+    # regular merge if scratch is big enough
+    lenA <= length(scratch) && return merge!(v, lo, m, hi, o, scratch)
 
     len = lenA + lenB
     pagesize = isqrt(len)
     nPages = len ÷ pagesize # a partial page at the end does not count
-    @assert length(buf) >= 3pagesize
+    @assert length(scratch) >= 3pagesize
     @assert length(pageLocations) >= nPages - 3
 
     @inline page_offset(page) = (page - 1) * pagesize + lo - 1
@@ -794,8 +794,8 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         ##################
         # merge
         ##################
-        # merge the first 3 pages into buf
-        a, b, _ = merge!((_, _, k) -> k <= 3pagesize, buf, v, v, o, lo, m + 1, 1)
+        # merge the first 3 pages into scratch
+        a, b, _ = merge!((_, _, k) -> k <= 3pagesize, scratch, v, v, o, lo, m + 1, 1)
         # initialize variables for merging into pages
         pages = Pages(-17, 0, 1, (m - lo) ÷ pagesize + 2) # first argument is unused
         # more efficient loop while more than pagesize elements of A and B are remaining
@@ -840,13 +840,13 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         ##################
         # rearrange pages
         ##################
-        # copy pages belonging to the 3 permutation chains ending with a page in the buffer
+        # copy pages belonging to the 3 permutation chains ending with a page in the scratch space
         nextA, nextB = pages.nextA, pages.nextB
 
         for _ in 1:3
             page = (nextB > nPages ? (nextA += 1) : (nextB += 1)) - 1
             page = permute_pages!(>(3), v, pageLocations, page_offset, pagesize, page)
-            copyto!(v, page_offset(page) + 1, buf, (page - 1) * pagesize + 1, pagesize)
+            copyto!(v, page_offset(page) + 1, scratch, (page - 1) * pagesize + 1, pagesize)
         end
 
         # copy remaining permutation cycles
@@ -855,12 +855,12 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
             page = pageLocations[donePageIndex-3]
             page == donePageIndex && continue
 
-            # copy the data belonging to donePageIndex into buf
-            copyto!(buf, 1, v, page_offset(page) + 1, pagesize)
+            # copy the data belonging to donePageIndex into scratch
+            copyto!(scratch, 1, v, page_offset(page) + 1, pagesize)
 
             # follow the cycle starting with the newly freed page
             permute_pages!(!=(donePageIndex), v, pageLocations, page_offset, pagesize, page)
-            copyto!(v, page_offset(donePageIndex) + 1, buf, 1, pagesize)
+            copyto!(v, page_offset(donePageIndex) + 1, scratch, 1, pagesize)
         end
     end
 end
@@ -869,18 +869,18 @@ end
 # -> redefine for compatibility with earlier versions
 midpoint(lo::Integer, hi::Integer) = lo + ((hi - lo) >>> 0x01)
 
-function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, o::Ordering, buf::AbstractVector{T}, pageLocations) where {T}
+function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, o::Ordering, scratch::AbstractVector{T}, pageLocations) where {T}
     len = hi + 1 - lo
     if len <= Base.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
     m = midpoint(lo, hi - 1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
-    pagedmergesort!(v, lo, m, o, buf, pageLocations)
-    pagedmergesort!(v, m + 1, hi, o, buf, pageLocations)
-    if len <= length(buf)
-        twoended_merge!(v, lo, m, hi, o, buf)
+    pagedmergesort!(v, lo, m, o, scratch, pageLocations)
+    pagedmergesort!(v, m + 1, hi, o, scratch, pageLocations)
+    if len <= length(scratch)
+        twoended_merge!(v, lo, m, hi, o, scratch)
     else
-        paged_merge!(v, lo, m, hi, o, buf, pageLocations)
+        paged_merge!(v, lo, m, hi, o, scratch, pageLocations)
     end
     return v
 end
@@ -889,10 +889,10 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::PagedMergeSortAlg,
     lo >= hi && return v
     n = hi + 1 - lo
     pagesize = isqrt(n)
-    buf = Vector{eltype(v)}(undef, 3pagesize)
+    scratch = Vector{eltype(v)}(undef, 3pagesize)
     nPages = n ÷ pagesize
     pageLocations = Vector{Int}(undef, nPages - 3)
-    pagedmergesort!(v, lo, hi, o, buf, pageLocations)
+    pagedmergesort!(v, lo, hi, o, scratch, pageLocations)
     return v
 end
 end # module
