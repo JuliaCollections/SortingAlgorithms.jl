@@ -10,14 +10,11 @@ The `SortingAlgorithms` package provides three sorting algorithms that can be us
 - [TimSort] – a stable, general purpose, hybrid, O(n log n) comparison sort that adapts to different common patterns of partially ordered input data.
 - [CombSort] – an unstable, general purpose, in-place, O(n log n) comparison sort with O(n^2) pathological cases that can attain good efficiency through SIMD instructions and instruction level paralellism on modern hardware.
 - [PagedMergeSort] – a stable, general purpose, O(n log n) time and O(sqrt n) space comparison sort.
-- [ThreadedPagedMergeSort] – a stable, general purpose, O(n log n) time and O(sqrt n) space comparison sort using multithreaded [parallel recursion].
 
 [HeapSort]: https://en.wikipedia.org/wiki/Heapsort
 [TimSort]:  https://en.wikipedia.org/wiki/Timsort
 [CombSort]: https://en.wikipedia.org/wiki/Comb_sort
 [PagedMergeSort]: https://link.springer.com/chapter/10.1007/BFb0016253
-[ThreadedPagedMergeSort]: https://link.springer.com/chapter/10.1007/BFb0016253
-[parallel recursion]: https://en.wikipedia.org/wiki/Merge_sort#Merge_sort_with_parallel_recursion
 
 ## Usage
 

@@ -9,14 +9,13 @@ using Base.Order
 import Base.Sort: sort!
 import DataStructures: heapify!, percolate_down!
 
-export HeapSort, TimSort, RadixSort, CombSort, PagedMergeSort, ThreadedPagedMergeSort
+export HeapSort, TimSort, RadixSort, CombSort, PagedMergeSort
 
 struct HeapSortAlg  <: Algorithm end
 struct TimSortAlg   <: Algorithm end
 struct RadixSortAlg <: Algorithm end
 struct CombSortAlg  <: Algorithm end
 struct PagedMergeSortAlg  <: Algorithm end
-struct ThreadedPagedMergeSortAlg  <: Algorithm end
 
 function maybe_optimize(x::Algorithm)
     isdefined(Base.Sort, :InitialOptimizations) ? Base.Sort.InitialOptimizations(x) : x
@@ -81,28 +80,6 @@ Characteristics:
  - https://max-arbuzov.blogspot.com/2021/10/merge-sort-with-osqrtn-auxiliary-memory.html
 """
 const PagedMergeSort  = maybe_optimize(PagedMergeSortAlg())
-
-"""
-    ThreadedPagedMergeSort
-
-Multithreaded version of PagedMergeSort using Threads.nthreads-times the auxilary space.
-Uses multithreaded recursion (not multithreaded merging), so the maximum speedup is
-limited to O(log n)
-Characteristics:
- - *stable*: does preserve the ordering of elements which
-   compare equal (e.g. "a" and "A" in a sort of letters which
-   ignores case).
- - *`O(√n)`* auxilary memory usage.
- - *`O(n log n)`* garuanteed runtime.
-
-## References
- - Dvořák, S., Ďurian, B. (1986). Towards an efficient merging. In: Gruska, J., Rovan, B., Wiedermann,
-   J. (eds) Mathematical Foundations of Computer Science 1986. MFCS 1986. Lecture Notes in Computer Science, vol 233.
-   Springer, Berlin, Heidelberg. https://doi.org/10.1007/BFb0016253
- - https://max-arbuzov.blogspot.com/2021/10/merge-sort-with-osqrtn-auxiliary-memory.html
- - https://en.wikipedia.org/wiki/Merge_sort#Merge_sort_with_parallel_recursion
-"""
-const ThreadedPagedMergeSort  = maybe_optimize(ThreadedPagedMergeSortAlg())
 
 ## Heap sort
 
@@ -917,54 +894,5 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::PagedMergeSortAlg,
     pageLocations = Vector{Int}(undef, nPages - 3)
     pagedmergesort!(v, lo, hi, o, buf, pageLocations)
     return v
-end
-
-Base.@static if VERSION >= v"1.3"
-    const PAGEDMERGESORT_THREADING_THRESHOLD = 2^13
-    function threaded_pagedmergesort!(v::AbstractVector, lo::Integer, hi::Integer, o::Ordering, bufs, pageLocations, c::Channel, threadingThreshold::Integer)
-        len = hi + 1 - lo
-        m = midpoint(lo, hi - 1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
-        if len > threadingThreshold
-            thr = Threads.@spawn threaded_pagedmergesort!(v, lo, m, o, bufs, pageLocations, c, threadingThreshold)
-            threaded_pagedmergesort!(v, m + 1, hi, o, bufs, pageLocations, c, threadingThreshold)
-            wait(thr)
-            id = take!(c)
-            buf = bufs[id]
-            pageLocations = pageLocations[id]
-        else
-            id = take!(c)
-            buf = bufs[id]
-            pageLocations = pageLocations[id]
-            pagedmergesort!(v, lo, m, o, buf, pageLocations)
-            pagedmergesort!(v, m + 1, hi, o, buf, pageLocations)
-        end
-        if len <= length(buf)
-            twoended_merge!(v, lo, m, hi, o, buf)
-        else
-            paged_merge!(v, lo, m, hi, o, buf, pageLocations)
-        end
-        put!(c, id)
-        return v
-    end
-    function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::ThreadedPagedMergeSortAlg, o::Ordering)
-        lo >= hi && return v
-        n = hi + 1 - lo
-        nThreads = Threads.nthreads()
-        (n < PAGEDMERGESORT_THREADING_THRESHOLD || nThreads < 2) && return sort!(v, lo, hi, PagedMergeSortAlg(), o)
-        threadingThreshold = max(n ÷ 4nThreads, PAGEDMERGESORT_THREADING_THRESHOLD)
-        pagesize = isqrt(n)
-        nPages = n ÷ pagesize
-        bufs = [Vector{eltype(v)}(undef, 3pagesize) for _ in 1:nThreads] # allocate buffer for each thread
-        pageLocations = [Vector{Int}(undef, nPages + 1) for _ in 1:nThreads]
-        c = Channel{Int}(nThreads) # channel holds indices of available buffers
-        for i = 1:nThreads
-            put!(c, i)
-        end
-        threaded_pagedmergesort!(v, lo, hi, o, bufs, pageLocations, c, threadingThreshold)
-        return v
-    end
-else
-    # use single threaded function when VERSION < v"1.3"
-    sort!(v::AbstractVector, lo::Integer, hi::Integer, ::ThreadedPagedMergeSortAlg, o::Ordering) = sort!(v, lo, hi, PagedMergeSort, o)
 end
 end # module
