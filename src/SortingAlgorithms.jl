@@ -23,7 +23,7 @@ end
 const HeapSort  = maybe_optimize(HeapSortAlg())
 const TimSort   = maybe_optimize(TimSortAlg())
 # Whenever InitialOptimizations is defined, RadixSort falls
-# back to Base.DEFAULT_STABLE which already incldues them.
+# back to Base.DEFAULT_STABLE which already includes them.
 const RadixSort = RadixSortAlg()
 
 """
@@ -107,6 +107,27 @@ end
 #   http://en.wikipedia.org/wiki/Timsort
 #
 # Original author: @kmsquire
+
+@static if v"1.9.0-alpha" <= VERSION <= v"1.9.1"
+    function Base.getindex(v::Base.Sort.WithoutMissingVector, i::UnitRange)
+        out = Vector{eltype(v)}(undef, length(i))
+        out .= v.data[i]
+        out
+    end
+
+    # skip MissingOptimization due to JuliaLang/julia#50171
+    const _FIVE_ARG_SAFE_DEFAULT_STABLE = Base.DEFAULT_STABLE.next
+
+    # Explicitly define conversion from _sort!(v, alg, order, kw) to sort!(v, lo, hi, alg, order)
+    # To avoid excessively strict dispatch loop detection
+    function Base.Sort._sort!(v::AbstractVector, a::Union{HeapSortAlg, TimSortAlg, RadixSortAlg, CombSortAlg}, o::Base.Order.Ordering, kw)
+        Base.Sort.@getkw lo hi scratch
+        sort!(v, lo, hi, a, o)
+        scratch
+    end
+else
+    const _FIVE_ARG_SAFE_DEFAULT_STABLE = Base.DEFAULT_STABLE
+end
 
 const Run = UnitRange{Int}
 
@@ -519,7 +540,7 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, ::TimSortAlg, o::Ordering)
             # Make a run of length minrun
             count = min(minrun, hi-i+1)
             run_range = i:i+count-1
-            sort!(v, i, i+count-1, DEFAULT_STABLE, o)
+            sort!(v, i, i+count-1, _FIVE_ARG_SAFE_DEFAULT_STABLE, o)
         else
             if !issorted(run_range)
                 run_range = last(run_range):first(run_range)
