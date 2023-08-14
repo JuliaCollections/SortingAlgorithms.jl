@@ -685,6 +685,19 @@ end
 # PagedMergeSort
 ###
 
+# unsafe version of copyto!
+# as workaround for https://github.com/JuliaLang/julia/issues/50900
+function _unsafe_copyto!(dest, doffs, src, soffs, n)
+    @inbounds for i in 0:n-1
+        dest[doffs + i] = src[soffs + i]
+    end
+    dest
+end
+
+function _unsafe_copyto!(dest::Array, doffs, src::Array, soffs, n)
+    unsafe_copyto!(dest, doffs, src, soffs, n)
+end
+
 # merge v[lo:m] and v[m+1:hi] ([A;B]) using scratch[1:1+hi-lo]
 # This is faster than merge! but requires twice as much auxiliary memory.
 function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, scratch::AbstractVector{T}) where T
@@ -754,10 +767,10 @@ end
 # merge v[lo:m] and v[m+1:hi] using scratch[1:1+m-lo]
 # based on Base.Sort MergeSort
 function merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, scratch::AbstractVector{T}) where {T}
-    copyto!(scratch, 1, v, lo, m - lo + 1)
+    _unsafe_copyto!(scratch, 1, v, lo, m - lo + 1)
     f(_, b, k) = k < b <= hi
     a, b, k = merge!(f, v, scratch, v, o, 1, m + 1, lo)
-    copyto!(v, k, scratch, a, b - k)
+    _unsafe_copyto!(v, k, scratch, a, b - k)
 end
 
 struct Pages
@@ -784,7 +797,7 @@ Base.@propagate_inbounds function permute_pages!(f, v, pageLocations, page_offse
     while f(page)
         plc = pageLocations[page-3] # plc has data belonging to page
         pageLocations[page-3] = page
-        copyto!(v, page_offset(page) + 1, v, page_offset(plc) + 1, pagesize)
+        _unsafe_copyto!(v, page_offset(page) + 1, v, page_offset(plc) + 1, pagesize)
         page = plc
     end
     page
@@ -837,25 +850,25 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         # if the last page is reached, merge the remaining elements into the final partial page
         if pages.currentNumber + 3 == nPages && a <= m && b <= hi
             a, b, k = merge!((a, b, _) -> a <= m && b <= hi, v, v, v, o, a, b, nPages * pagesize + lo)
-            copyto!(v, k, v, a <= m ? a : b, hi - k + 1)
+            _unsafe_copyto!(v, k, v, a <= m ? a : b, hi - k + 1)
         else
             use_a = a <= m
             # copy the incomplete page
             partial_page_size = offset + pagesize - k + 1
-            copyto!(v, k, v, use_a ? a : b, partial_page_size)
+            _unsafe_copyto!(v, k, v, use_a ? a : b, partial_page_size)
             use_a && (a += partial_page_size)
             use_a || (b += partial_page_size)
             # copy the remaining full pages
             while use_a ? a <= m - pagesize + 1 : b <= hi - pagesize + 1
                 pages = next_page!(pageLocations, pages, pagesize, lo, a)
                 offset = page_offset(pages.current)
-                copyto!(v, offset + 1, v, use_a ? a : b, pagesize)
+                _unsafe_copyto!(v, offset + 1, v, use_a ? a : b, pagesize)
                 use_a && (a += pagesize)
                 use_a || (b += pagesize)
             end
             # copy the final partial page only if sourcing from A.
             # If sourcing from B, it is already in place.
-            use_a && copyto!(v, hi - m + a, v, a, m - a + 1)
+            use_a && _unsafe_copyto!(v, hi - m + a, v, a, m - a + 1)
         end
 
         ##################
@@ -867,7 +880,7 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
         for _ in 1:3
             page = (nextB > nPages ? (nextA += 1) : (nextB += 1)) - 1
             page = permute_pages!(>(3), v, pageLocations, page_offset, pagesize, page)
-            copyto!(v, page_offset(page) + 1, scratch, (page - 1) * pagesize + 1, pagesize)
+            _unsafe_copyto!(v, page_offset(page) + 1, scratch, (page - 1) * pagesize + 1, pagesize)
         end
 
         # copy remaining permutation cycles
@@ -877,11 +890,11 @@ function paged_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer
             page == donePageIndex && continue
 
             # copy the data belonging to donePageIndex into scratch
-            copyto!(scratch, 1, v, page_offset(page) + 1, pagesize)
+            _unsafe_copyto!(scratch, 1, v, page_offset(page) + 1, pagesize)
 
             # follow the cycle starting with the newly freed page
             permute_pages!(!=(donePageIndex), v, pageLocations, page_offset, pagesize, page)
-            copyto!(v, page_offset(donePageIndex) + 1, scratch, 1, pagesize)
+            _unsafe_copyto!(v, page_offset(donePageIndex) + 1, scratch, 1, pagesize)
         end
     end
 end
