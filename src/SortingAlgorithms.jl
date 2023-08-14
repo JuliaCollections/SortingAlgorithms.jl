@@ -925,7 +925,7 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::PagedMergeSortAlg,
     pagesize = isqrt(n)
     scratch = Vector{eltype(v)}(undef, 3pagesize)
     nPages = n ÷ pagesize
-    pageLocations = Vector{Int}(undef, nPages - 3)
+    pageLocations = Vector{Int}(undef, max(0, nPages - 3))
     pagedmergesort!(v, lo, hi, o, scratch, pageLocations)
     return v
 end
