@@ -151,3 +151,10 @@ for T in (Float64, Int, UInt8)
         end
     end
 end
+
+# PagedMergeSort with small input without InitialOptimizations
+# (https://github.com/JuliaCollections/SortingAlgorithms.jl/pull/71#discussion_r1292774352)
+if isdefined(Base.Sort, :InitialOptimizations)
+    v = [0,1]
+    @test sort(v, alg=SortingAlgorithms.PagedMergeSortAlg()) == sort(v, alg=MergeSort)
+end
