@@ -3,10 +3,13 @@ using Test
 using StatsBase
 using Random
 
+stable_algorithms = [TimSort, RadixSort, PagedMergeSort]
+unstable_algorithms = [HeapSort, CombSort]
+
 a = rand(1:10000, 1000)
 am = [rand() < .9 ? i : missing for i in a]
 
-for alg in [TimSort, HeapSort, RadixSort, CombSort, SortingAlgorithms.TimSortAlg()]
+for alg in [stable_algorithms; unstable_algorithms; SortingAlgorithms.TimSortAlg()]
     b = sort(a, alg=alg)
     @test issorted(b)
     ix = sortperm(a, alg=alg)
@@ -94,8 +97,7 @@ for n in [0:10..., 100, 101, 1000, 1001]
         invpermute!(c, pi)
         @test c == v
 
-        # stable algorithms
-        for alg in [TimSort, RadixSort]
+        for alg in stable_algorithms
             p = sortperm(v, alg=alg, order=ord)
             @test p == pi
             s = copy(v)
@@ -105,8 +107,7 @@ for n in [0:10..., 100, 101, 1000, 1001]
             @test s == v
         end
 
-        # unstable algorithms
-        for alg in [HeapSort, CombSort]
+        for alg in unstable_algorithms
             p = sortperm(v, alg=alg, order=ord)
             @test isperm(p)
             @test v[p] == si
@@ -120,7 +121,7 @@ for n in [0:10..., 100, 101, 1000, 1001]
 
     v = randn_with_nans(n,0.1)
     for ord in [Base.Order.Forward, Base.Order.Reverse],
-        alg in [TimSort, HeapSort, RadixSort, CombSort]
+        alg in [stable_algorithms; unstable_algorithms]
         # test float sorting with NaNs
         s = sort(v, alg=alg, order=ord)
         @test issorted(s, order=ord)
@@ -137,4 +138,23 @@ for n in [0:10..., 100, 101, 1000, 1001]
         @test isequal(vp,s)
         @test reinterpret(UInt64,vp) == reinterpret(UInt64,s)
     end
+end
+
+for T in (Float64, Int, UInt8)
+    for alg in stable_algorithms
+        for ord in [Base.Order.By(identity), Base.Order.By(_ -> 0), Base.Order.By(Base.Fix2(÷, 100))]
+            for n in vcat(0:31, 40:11:100, 110:51:1000)
+                v = rand(T, n)
+                # use MergeSort to guarantee stable sorting in Julia 1.0
+                @test sort(v, alg=alg, order=ord) == sort(v, alg=MergeSort, order=ord)
+            end
+        end
+    end
+end
+
+# PagedMergeSort with small input without InitialOptimizations
+# (https://github.com/JuliaCollections/SortingAlgorithms.jl/pull/71#discussion_r1292774352)
+if isdefined(Base.Sort, :InitialOptimizations)
+    v = [0,1]
+    @test sort(v, alg=SortingAlgorithms.PagedMergeSortAlg()) == sort(v, alg=MergeSort)
 end
