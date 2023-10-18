@@ -158,3 +158,5 @@ if isdefined(Base.Sort, :InitialOptimizations)
     v = [0,1]
     @test sort(v, alg=SortingAlgorithms.PagedMergeSortAlg()) == sort(v, alg=MergeSort)
 end
+
+include("aqua.jl")

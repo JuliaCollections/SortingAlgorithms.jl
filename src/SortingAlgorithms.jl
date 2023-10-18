@@ -582,6 +582,9 @@ end
     function sort!(vs::AbstractVector{T}, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts::Union{Nothing, AbstractVector{T}}=nothing) where T
         sort!(vs, lo, hi, Base.DEFAULT_STABLE, o)
     end
+    function sort!(vs::AbstractVector{T}, lo::Int, hi::Int, ::RadixSortAlg, o::Ordering, ts::Vector{T}) where T # disambiguate
+        sort!(vs, lo, hi, Base.DEFAULT_STABLE, o)
+    end
 else
 
     # Map a bits-type to an unsigned int, maintaining sort order
