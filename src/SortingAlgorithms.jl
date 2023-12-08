@@ -1052,11 +1052,11 @@ end
 # x = rand(Int, 1000);
 # y = similar(x);
 # z = similar(x);
-# @btime SortingAlgorithms._unstable_partition!(isodd, copyto!($y, $x))
-# @btime SortingAlgorithms._branching_lo_stable_partition!(isodd, copyto!($y, $x))
-# @btime SortingAlgorithms._branchless_lo_stable_partition!(isodd, copyto!($y, $x))
-# @btime SortingAlgorithms._branching_stable_reversestable_partition_to!(isodd, $z, copyto!($y, $x))
-# @btime SortingAlgorithms._branchless_stable_reversestable_partition_to!(isodd, $z, copyto!($y, $x))
-# @btime SortingAlgorithms._base_stable_reversestable_partition_to!(isodd, $z, copyto!($y, $x))
+# @btime SortingAlgorithms._unstable_partition!(isodd, copyto!($y, $x)) # 816.176 ns
+# @btime SortingAlgorithms._branching_lo_stable_partition!(isodd, copyto!($y, $x)) # 752.101 ns
+# @btime SortingAlgorithms._branchless_lo_stable_partition!(isodd, copyto!($y, $x)) # 679.054 ns
+# @btime SortingAlgorithms._branching_stable_reversestable_partition_to!(isodd, $z, copyto!($y, $x)) # 734.336 ns
+# @btime SortingAlgorithms._branchless_stable_reversestable_partition_to!(isodd, $z, copyto!($y, $x)) # 829.861 ns
+# @btime SortingAlgorithms._base_stable_reversestable_partition_to!(isodd, $z, copyto!($y, $x)) # 687.908 ns
 
 end
