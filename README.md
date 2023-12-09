@@ -19,67 +19,67 @@ The `SortingAlgorithms` package provides four sorting algorithms that can be use
 ## Usage
 
 ```jl
-	julia> using SortingAlgorithms
+julia> using SortingAlgorithms
 
-	julia> words = map(chomp,[readlines(open("/usr/share/dict/words"))...])
-	235886-element Array{ASCIIString,1}:
-	 "A"
-	 "a"
-	 "aa"
-	 ⋮
-	 "zythum"
-	 "Zyzomys"
-	 "Zyzzogeton"
+julia> words = map(chomp,[readlines(open("/usr/share/dict/words"))...])
+235886-element Array{ASCIIString,1}:
+ "A"
+ "a"
+ "aa"
+ ⋮
+ "zythum"
+ "Zyzomys"
+ "Zyzzogeton"
 
-	julia> sort!(words, alg=TimSort)
-	235886-element Array{ASCIIString,1}:
-	 "A"
-	 "Aani"
-	 "Aaron"
-	 ⋮
-	 "zymurgy"
-	 "zythem"
-	 "zythum"
+julia> sort!(words, alg=TimSort)
+235886-element Array{ASCIIString,1}:
+ "A"
+ "Aani"
+ "Aaron"
+ ⋮
+ "zymurgy"
+ "zythem"
+ "zythum"
 
-	julia> sort!(words, alg=TimSort, by=length)
-	235886-element Array{ASCIIString,1}:
-	 "A"
-	 "B"
-	 "C"
-	 ⋮
-	 "scientificophilosophical"
-	 "tetraiodophenolphthalein"
-	 "thyroparathyroidectomize"
+julia> sort!(words, alg=TimSort, by=length)
+235886-element Array{ASCIIString,1}:
+ "A"
+ "B"
+ "C"
+ ⋮
+ "scientificophilosophical"
+ "tetraiodophenolphthalein"
+ "thyroparathyroidectomize"
 
-	julia> sort!(words, alg=HeapSort)
-	235886-element Array{ASCIIString,1}:
-	 "A"
-	 "Aani"
-	 "Aaron"
-	 ⋮
-	 "zymurgy"
-	 "zythem"
-	 "zythum"
+julia> sort!(words, alg=HeapSort)
+235886-element Array{ASCIIString,1}:
+ "A"
+ "Aani"
+ "Aaron"
+ ⋮
+ "zymurgy"
+ "zythem"
+ "zythum"
 
-	julia> sort!(words, alg=HeapSort, by=length)
-	235886-element Array{ASCIIString,1}:
-	 "L"
-	 "p"
-	 "U"
-	 ⋮
-	 "scientificophilosophical"
-	 "tetraiodophenolphthalein"
-	 "thyroparathyroidectomize"
+julia> sort!(words, alg=HeapSort, by=length)
+235886-element Array{ASCIIString,1}:
+ "L"
+ "p"
+ "U"
+ ⋮
+ "scientificophilosophical"
+ "tetraiodophenolphthalein"
+ "thyroparathyroidectomize"
 
-	julia> sort!(randn(1000), alg=CombSort)
-	1000-element Array{Float64,1}:
-	 -2.86255
-	 -2.72041
-	 -2.58234
-	  ⋮
-	  3.15075
-	  3.20058
-	  3.23942
+julia> sort!(randn(1000), alg=CombSort)
+1000-element Array{Float64,1}:
+ -2.86255
+ -2.72041
+ -2.58234
+  ⋮
+  3.15075
+  3.20058
+  3.23942
 ```
 
 ## Other packages that provide sorting algorithms
