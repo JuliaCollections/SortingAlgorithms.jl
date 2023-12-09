@@ -4,7 +4,7 @@
 [![Coverage Status](https://coveralls.io/repos/JuliaLang/SortingAlgorithms.jl/badge.svg)](https://coveralls.io/r/JuliaLang/SortingAlgorithms.jl)
 [![deps](https://juliahub.com/docs/SortingAlgorithms/deps.svg)](https://juliahub.com/ui/Packages/SortingAlgorithms/6dCmw?t=2)
 
-The `SortingAlgorithms` package provides three sorting algorithms that can be used with Julia's [standard sorting API](https://docs.julialang.org/en/v1/base/sort/):
+The `SortingAlgorithms` package provides four sorting algorithms that can be used with Julia's [standard sorting API](https://docs.julialang.org/en/v1/base/sort/):
 
 - [HeapSort] – an unstable, general purpose, in-place, O(n log n) comparison sort that works by heapifying an array and repeatedly taking the maximal element from the heap.
 - [TimSort] – a stable, general purpose, hybrid, O(n log n) comparison sort that adapts to different common patterns of partially ordered input data.
