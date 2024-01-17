@@ -1,4 +1,4 @@
-__precompile__()
+__precompile__()#
 
 module SortingAlgorithms
 
@@ -100,6 +100,7 @@ function sort!(v::AbstractVector, lo::Int, hi::Int, a::HeapSortAlg, o::Ordering)
     v
 end
 
+Base.:+(x::Int, y::Int) = Int(Int128(x) + Int128(y))
 
 # Implementation of TimSort based on the algorithm description at:
 #
