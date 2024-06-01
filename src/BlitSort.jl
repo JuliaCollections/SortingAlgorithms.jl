@@ -327,7 +327,7 @@ function blit_reverse_partition!(array, array_index::Int, swap, swap_index::Int,
         end
         m = pta - array_index
 
-        _unsafe_copyto!(array, pta, swap, swap_index, nmemb - m)
+        copyto!(array, pta, swap, swap_index, nmemb - m)
 
         return asUInt(m)
     end
@@ -375,7 +375,7 @@ function blit_default_partition!(array, array_index::Int, swap, swap_index::Int,
         end
         m = pta - array_index
 
-        _unsafe_copyto!(array, pta, swap, swap_index, nmemb - m)
+        copyto!(array, pta, swap, swap_index, nmemb - m)
 
         return asUInt(m)
     end

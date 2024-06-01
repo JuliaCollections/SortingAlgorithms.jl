@@ -446,25 +446,25 @@ function cross_merge!(dest, dest_index::Int, from, from_index::Int, left::UInt, 
         while tpl - ptl > 8 && tpr - ptr > 8
             @label ptl8_ptr
             if cmp(from[ptl+7], from[ptr]) ≤ 0
-                _unsafe_copyto!(dest, ptd, from, ptl, 8); ptd += 8; ptl += 8
+                copyto!(dest, ptd, from, ptl, 8); ptd += 8; ptl += 8
                 tpl - ptl > 8 && @goto ptl8_ptr
                 break
             end
             @label ptl_ptr8
             if cmp(from[ptl], from[ptr+7]) > 0
-                _unsafe_copyto!(dest, ptd, from, ptr, 8); ptd += 8; ptr += 8
+                copyto!(dest, ptd, from, ptr, 8); ptd += 8; ptr += 8
                 tpr - ptr > 8 && @goto ptl_ptr8
                 break
             end
             @label tpl_tpr8
             if cmp(from[tpl], from[tpr-7]) ≤ 0
-                tpd -= 8; tpr -= 8; _unsafe_copyto!(dest, tpd +1, from, tpr +1, 8)
+                tpd -= 8; tpr -= 8; copyto!(dest, tpd +1, from, tpr +1, 8)
                 tpr - ptr > 8 && @goto tpl_tpr8
                 break
             end
             @label tpl8_tpr
             if cmp(from[tpl-7], from[tpr]) > 0
-                tpd -= 8; tpl -= 8; _unsafe_copyto!(dest, tpd +1, from, tpl +1, 8)
+                tpd -= 8; tpl -= 8; copyto!(dest, tpd +1, from, tpl +1, 8)
                 tpl - ptl > 8 && @goto tpl8_tpr
             end
             loop = 8
@@ -511,14 +511,14 @@ function quad_merge_block!(array, array_index::Int, swap, swap_index::Int, block
             cross_merge!(swap, swap_index, array, array_index, block, block, cmp)
             cross_merge!(swap, swap_index + asInt(block_x_2), array, pt2, block, block, cmp)
         elseif tmp == 1
-            _unsafe_copyto!(swap, swap_index, array, array_index, block_x_2)
+            copyto!(swap, swap_index, array, array_index, block_x_2)
             cross_merge!(swap, swap_index + asInt(block_x_2), array, pt2, block, block, cmp)
         elseif tmp == 2
             cross_merge!(swap, swap_index, array, array_index, block, block, cmp)
-            _unsafe_copyto!(swap, swap_index + asInt(block_x_2), array, pt2, block_x_2)
+            copyto!(swap, swap_index + asInt(block_x_2), array, pt2, block_x_2)
         elseif tmp == 3
             cmp(array[pt2-1], array[pt2]) ≤ 0 && return
-            _unsafe_copyto!(swap, swap_index, array, array_index, 2block_x_2)
+            copyto!(swap, swap_index, array, array_index, 2block_x_2)
         end
         cross_merge!(array, array_index, swap, swap_index, block_x_2, block_x_2, cmp)
     end
@@ -549,7 +549,7 @@ function partial_forward_merge!(array, array_index::Int, swap, swap_index::Int, 
         tpr = array_index + asInt(nmemb) -1
         cmp(array[ptr-1], array[ptr]) ≤ 0 && return
 
-        _unsafe_copyto!(swap, swap_index, array, array_index, block)
+        copyto!(swap, swap_index, array, array_index, block)
         ptl = swap_index
         tpl = swap_index + asInt(block) -1
         while ptl < tpl -1 && ptr < tpr -1
@@ -598,11 +598,11 @@ function partial_backward_merge!(array, array_index::Int, swap, swap_index::Int,
         right = nmemb - block
         if nmemb ≤ swap_size && right ≥ 64
             cross_merge!(swap, swap_index, array, array_index, block, right, cmp)
-            _unsafe_copyto!(array, array_index, swap, swap_index, nmemb)
+            copyto!(array, array_index, swap, swap_index, nmemb)
             return
         end
 
-        _unsafe_copyto!(swap, swap_index, array, array_index + asInt(block), right)
+        copyto!(swap, swap_index, array, array_index + asInt(block), right)
         tpr = swap_index + asInt(right) -1
         while tpl > array_index +16 && tpr > swap_index +16
             @label tpl_tpr16
@@ -717,9 +717,9 @@ function trinity_rotation!(array, array_index::Int, swap, swap_index::Int, swap_
         end
         if left < right
             if left ≤ swap_size
-                _unsafe_copyto!(swap, swap_index, array, array_index, left)
-                _unsafe_copyto!(array, array_index, array, array_index + asInt(left), right)
-                _unsafe_copyto!(array, array_index + asInt(right), swap, swap_index, left)
+                copyto!(swap, swap_index, array, array_index, left)
+                copyto!(array, array_index, array, array_index + asInt(left), right)
+                copyto!(array, array_index + asInt(right), swap, swap_index, left)
             else
                 pta = array_index
                 ptb = pta + asInt(left)
@@ -727,12 +727,12 @@ function trinity_rotation!(array, array_index::Int, swap, swap_index::Int, swap_
                 if bridge ≤ swap_size && bridge > 3
                     ptc = pta + asInt(right)
                     ptd = ptc + asInt(left)
-                    _unsafe_copyto!(swap, swap_index, array, ptb, bridge)
+                    copyto!(swap, swap_index, array, ptb, bridge)
                     for _ in 1:left
                         array[ptc -= 1] = array[ptd -= 1]
                         array[ptd] = array[ptb -= 1]
                     end
-                    _unsafe_copyto!(array, pta, swap, swap_index, bridge)
+                    copyto!(array, pta, swap, swap_index, bridge)
                 else
                     ptc = ptb
                     ptd = ptc + asInt(right)
@@ -758,9 +758,9 @@ function trinity_rotation!(array, array_index::Int, swap, swap_index::Int, swap_
             end
         elseif right < left
             if right ≤ swap_size
-                _unsafe_copyto!(swap, swap_index, array, array_index + asInt(left), right)
-                _unsafe_copyto!(array, array_index + asInt(right), array, array_index, left)
-                _unsafe_copyto!(array, array_index, swap, swap_index, right)
+                copyto!(swap, swap_index, array, array_index + asInt(left), right)
+                copyto!(array, array_index + asInt(right), array, array_index, left)
+                copyto!(array, array_index, swap, swap_index, right)
             else
                 pta = array_index
                 ptb = pta + asInt(left)
@@ -768,7 +768,7 @@ function trinity_rotation!(array, array_index::Int, swap, swap_index::Int, swap_
                 if bridge ≤ swap_size && bridge > 3
                     ptc = pta + asInt(right)
                     ptd = ptc + asInt(left)
-                    _unsafe_copyto!(swap, swap_index, array, ptc, bridge)
+                    copyto!(swap, swap_index, array, ptc, bridge)
                     for _ in 1:right
                         array[ptc] = array[pta]
                         array[pta] = array[ptb]
@@ -776,7 +776,7 @@ function trinity_rotation!(array, array_index::Int, swap, swap_index::Int, swap_
                         pta += 1
                         ptb += 1
                     end
-                    _unsafe_copyto!(array, ptd - asInt(bridge), swap, swap_index, bridge)
+                    copyto!(array, ptd - asInt(bridge), swap, swap_index, bridge)
                 else
                     ptc = ptb
                     ptd = ptc + asInt(right)
@@ -847,9 +847,9 @@ function rotate_merge_block!(array, array_index::Int, swap, swap_index::Int, swa
 
         if !iszero(left)
             if lblock + left ≤ swap_size
-                _unsafe_copyto!(swap, swap_index, array, array_index, lblock)
-                _unsafe_copyto!(swap, swap_index + lblocki, array, array_index + lblocki + rblocki, left)
-                _unsafe_copyto!(array, array_index + lblocki + asInt(left), array, array_index + lblocki, rblock)
+                copyto!(swap, swap_index, array, array_index, lblock)
+                copyto!(swap, swap_index + lblocki, array, array_index + lblocki + rblocki, left)
+                copyto!(array, array_index + lblocki + asInt(left), array, array_index + lblocki, rblock)
 
                 cross_merge!(array, array_index, swap, swap_index, lblock, left, cmp)
             else
