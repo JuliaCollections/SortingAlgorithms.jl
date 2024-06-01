@@ -3,7 +3,7 @@ using Test
 using StatsBase
 using Random
 
-stable_algorithms = [TimSort, RadixSort, PagedMergeSort]
+stable_algorithms = [TimSort, RadixSort, PagedMergeSort, QuadSort, BlitSort]
 unstable_algorithms = [HeapSort, CombSort]
 
 a = rand(1:10000, 1000)
