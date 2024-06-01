@@ -932,4 +932,41 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::PagedMergeSortAlg,
     pagedmergesort!(v, lo, hi, o, scratch, pageLocations)
     return v
 end
+
+# QuadSort and BlitSort
+mutable struct StackSpace{N,T}
+    data::NTuple{N,T}
+
+    StackSpace{N,T}() where {T,N} = new{N,T}()
+end
+
+macro with_stackvec(name, len, eltype, body)
+    quote
+        local stackvec = StackSpace{$(esc(len)),$(esc(eltype))}()
+        $(esc(name)) = unsafe_wrap(Array, Ptr{$(esc(eltype))}(pointer_from_objref(stackvec)), $(esc(len)))
+        GC.@preserve stackvec begin
+            $(esc(body))
+            if !isbitstype($(esc(eltype)))
+                for i in eachindex($(esc(name)))
+                    Base._unsetindex!($(esc(name)), i)
+                end
+            end
+        end
+    end
+end
+
+macro unroll(n, expr)
+    result = Expr(:block)
+    for _ in 1:n
+        push!(result.args, expr)
+    end
+    esc(result)
+end
+
+asUInt(i::Int) = Core.bitcast(UInt, i)
+asInt(i::UInt) = Core.bitcast(Int, i)
+
+include("./QuadSort.jl")
+include("./BlitSort.jl")
+
 end # module
