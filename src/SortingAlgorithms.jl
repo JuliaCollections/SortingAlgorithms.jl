@@ -701,6 +701,17 @@ function _unsafe_copyto!(dest::Array, doffs, src::Array, soffs, n)
     unsafe_copyto!(dest, doffs, src, soffs, n)
 end
 
+function _unsafe_copyto_backwards!(dest, doffs, src, soffs, n)
+    @inbounds for i in n-1:-1:0
+        dest[doffs + i] = src[soffs + i]
+    end
+    dest
+end
+
+function _unsafe_copyto_backwards!(dest::Array, doffs, src::Array, soffs, n)
+    unsafe_copyto!(dest, doffs, src, soffs, n)
+end
+
 # merge v[lo:m] and v[m+1:hi] ([A;B]) using scratch[1:1+hi-lo]
 # This is faster than merge! but requires twice as much auxiliary memory.
 function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, scratch::AbstractVector{T}) where T
