@@ -282,7 +282,7 @@ function quad_reversal!(array, pta::Int, ptz::Int)
     end
 end
 
-function quad_swap_merge!(array, array_index::Int, swap, swap_index::Int, cmp)
+function quad_swap_merge!(array, array_index::Int, swap, swap_index::Int, cmp::T) where T
     parity_merge_two!(array, array_index, swap, swap_index, cmp)
     parity_merge_two!(array, array_index +4, swap, swap_index +4, cmp)
     parity_merge_four!(swap, swap_index, array, array_index, cmp)
@@ -524,7 +524,7 @@ function quad_merge_block!(array, array_index::Int, swap, swap_index::Int, block
     end
 end
 
-function quad_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp)
+function quad_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp::T) where T
     pte = array_index + asInt(nmemb)
     block *= 4
     while block ≤ nmemb && block ≤ swap_size
@@ -690,7 +690,7 @@ function partial_backward_merge!(array, array_index::Int, swap, swap_index::Int,
     end
 end
 
-function tail_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp)
+function tail_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp::T) where T
     pte = array_index + asInt(nmemb)
     while block < nmemb && block ≤ swap_size
         pta = array_index
@@ -882,7 +882,7 @@ function rotate_merge_block!(array, array_index::Int, swap, swap_index::Int, swa
     end
 end
 
-function rotate_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp)
+function rotate_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp::T) where T
     if nmemb ≤ 2block && nmemb - block ≤ swap_size # unsigned subtraction, ensures nmemb ≥ block
         partial_backward_merge!(array, array_index, swap, swap_index, swap_size, nmemb, block, cmp)
         return
