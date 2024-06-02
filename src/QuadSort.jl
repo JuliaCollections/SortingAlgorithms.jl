@@ -813,7 +813,7 @@ function trinity_rotation!(array, array_index::Int, swap, swap_index::Int, swap_
     end
 end
 
-function monobound_binary_first!(array, array_index::Int, value, top::UInt, cmp::F) where {F}
+function monobound_binary_first(array, array_index::Int, value, top::UInt, cmp::F) where {F}
     @inbounds begin
         end_ = array_index + asInt(top)
         while top > 1
@@ -839,7 +839,7 @@ function rotate_merge_block!(array, array_index::Int, swap, swap_index::Int, swa
         lblock -= rblock
         lblocki = asInt(lblock)
 
-        left = monobound_binary_first!(array, array_index + lblocki + rblocki, array[array_index+lblocki], right, cmp)
+        left = monobound_binary_first(array, array_index + lblocki + rblocki, array[array_index+lblocki], right, cmp)
 
         right -= left
 
