@@ -701,6 +701,17 @@ function _unsafe_copyto!(dest::Array, doffs, src::Array, soffs, n)
     unsafe_copyto!(dest, doffs, src, soffs, n)
 end
 
+function _unsafe_copyto_backwards!(dest, doffs, src, soffs, n)
+    @inbounds for i in n-1:-1:0
+        dest[doffs + i] = src[soffs + i]
+    end
+    dest
+end
+
+function _unsafe_copyto_backwards!(dest::Array, doffs, src::Array, soffs, n)
+    unsafe_copyto!(dest, doffs, src, soffs, n)
+end
+
 # merge v[lo:m] and v[m+1:hi] ([A;B]) using scratch[1:1+hi-lo]
 # This is faster than merge! but requires twice as much auxiliary memory.
 function twoended_merge!(v::AbstractVector{T}, lo::Integer, m::Integer, hi::Integer, o::Ordering, scratch::AbstractVector{T}) where T
@@ -932,4 +943,41 @@ function sort!(v::AbstractVector, lo::Integer, hi::Integer, ::PagedMergeSortAlg,
     pagedmergesort!(v, lo, hi, o, scratch, pageLocations)
     return v
 end
+
+# QuadSort and BlitSort
+mutable struct StackSpace{N,T}
+    data::NTuple{N,T}
+
+    StackSpace{N,T}() where {T,N} = new{N,T}()
+end
+
+macro with_stackvec(name, len, eltype, body)
+    quote
+        local stackvec = StackSpace{$(esc(len)),$(esc(eltype))}()
+        $(esc(name)) = unsafe_wrap(Array, Ptr{$(esc(eltype))}(pointer_from_objref(stackvec)), $(esc(len)))
+        GC.@preserve stackvec begin
+            $(esc(body))
+            if !isbitstype($(esc(eltype)))
+                for i in eachindex($(esc(name)))
+                    Base._unsetindex!($(esc(name)), i)
+                end
+            end
+        end
+    end
+end
+
+macro unroll(n, expr)
+    result = Expr(:block)
+    for _ in 1:n
+        push!(result.args, expr)
+    end
+    esc(result)
+end
+
+asUInt(i::Int) = Core.bitcast(UInt, i)
+asInt(i::UInt) = Core.bitcast(Int, i)
+
+include("./QuadSort.jl")
+include("./BlitSort.jl")
+
 end # module
