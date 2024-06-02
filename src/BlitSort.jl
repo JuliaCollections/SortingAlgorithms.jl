@@ -7,7 +7,7 @@ const BlitSort = maybe_optimize(BlitSortAlg())
 const BLIT_AUX = 512 # set to 0 for sqrt(n) cache size
 const BLIT_OUT = 96 # should be smaller or equal to BLIT_AUX
 
-function blit_analyze!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp)
+function blit_analyze!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp::F) where {F}
     @inbounds begin
         half1 = nmemb ÷ 2
         quad1 = half1 ÷ 2
@@ -182,7 +182,7 @@ end
 
 # The next 4 functions are used for pivot selection
 
-function blit_binary_median(arraya, pta::Int, arrayb, ptb::Int, len::UInt, cmp)
+function blit_binary_median(arraya, pta::Int, arrayb, ptb::Int, len::UInt, cmp::F) where {F}
     @inbounds begin
         while !iszero(len ÷= 2)
             leni = asInt(len)
@@ -198,7 +198,7 @@ function blit_binary_median(arraya, pta::Int, arrayb, ptb::Int, len::UInt, cmp)
     end
 end
 
-function blit_trim_four!(array, pta::Int, cmp)
+function blit_trim_four!(array, pta::Int, cmp::F) where {F}
     @inbounds begin
         x = cmp(array[pta], array[pta+1]) > 0
         array[pta], array[pta+1] = array[pta+x], array[pta+!x]
@@ -216,7 +216,7 @@ function blit_trim_four!(array, pta::Int, cmp)
     end
 end
 
-function blit_median_of_nine!(array, array_index::Int, swap, swap_index::Int, nmemb::UInt, cmp)
+function blit_median_of_nine!(array, array_index::Int, swap, swap_index::Int, nmemb::UInt, cmp::F) where {F}
     @inbounds begin
         z = asInt(nmemb ÷ 9)
 
@@ -245,7 +245,7 @@ function blit_median_of_nine!(array, array_index::Int, swap, swap_index::Int, nm
     end
 end
 
-function blit_median_of_cbrt!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp)
+function blit_median_of_cbrt!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp::F) where {F}
     @inbounds begin
         cbrt = UInt(32) # TODO: figure out how to write this more efficiently using bsr
         while nmemb > cbrt * cbrt * cbrt && cbrt < swap_size
@@ -285,7 +285,7 @@ function blit_median_of_cbrt!(array, array_index::Int, swap, swap_index::Int, sw
 end
 
 # As per suggestion by Marshall Lochbaum to improve generic data handling
-function blit_reverse_partition!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, piv, nmemb::UInt, cmp)
+function blit_reverse_partition!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, piv, nmemb::UInt, cmp::F) where {F}
     @inbounds begin
         if nmemb > swap_size
             h = nmemb ÷ 2;
@@ -333,7 +333,7 @@ function blit_reverse_partition!(array, array_index::Int, swap, swap_index::Int,
     end
 end
 
-function blit_default_partition!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, piv, nmemb::UInt, cmp)
+function blit_default_partition!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, piv, nmemb::UInt, cmp::F) where {F}
     @inbounds begin
         if nmemb > swap_size
             h = nmemb ÷ 2
@@ -381,7 +381,7 @@ function blit_default_partition!(array, array_index::Int, swap, swap_index::Int,
     end
 end
 
-function blit_partition!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp)
+function blit_partition!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp::F) where {F}
     @inbounds begin
         a_size = zero(UInt)
         local max
@@ -464,5 +464,5 @@ function sort!(array::AbstractVector, lo::Int, hi::Int, ::BlitSortAlg, o::Orderi
     return array
 end
 
-blitsort_swap!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp) =
+blitsort_swap!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp::F) where {F} =
 	(nmemb ≤ 132 ? quadsort_swap! : blit_analyze!)(array, array_index, swap, swap_index, swap_size, nmemb, cmp)

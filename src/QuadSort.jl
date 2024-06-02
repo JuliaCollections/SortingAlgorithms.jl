@@ -45,7 +45,7 @@ macro getcmp(array, indexp1, fn, indexp2, cmp)
     end))
 end
 
-@inline function parity_merge_two!(array, array_index::Int, swap, swap_index::Int, cmp)
+@inline function parity_merge_two!(array, array_index::Int, swap, swap_index::Int, cmp::F) where {F}
     @inbounds begin
         ptl = array_index; ptr = array_index + 2; pts = swap_index
         @head_branchless_merge(swap, pts, array, ptl, array, ptr, cmp)
@@ -57,7 +57,7 @@ end
     end
 end
 
-@inline function parity_merge_four!(array, array_index::Int, swap, swap_index::Int, cmp)
+@inline function parity_merge_four!(array, array_index::Int, swap, swap_index::Int, cmp::F) where {F}
     @inbounds begin
         ptl = array_index; ptr = array_index + 4; pts = swap_index
         @head_branchless_merge(swap, pts, array, ptl, array, ptr, cmp)
@@ -73,15 +73,15 @@ end
     end
 end
 
-@inline function swap_branchless!(array, array_index::Int, cmp,
-    x::Bool=@inbounds(cmp(array[array_index], array[array_index+1]) > 0))
+@inline function swap_branchless!(array, array_index::Int, cmp::F,
+    x::Bool=@inbounds(cmp(array[array_index], array[array_index+1]) > 0)) where {F}
     y = !x
     @inbounds array[array_index], array[array_index+1] = array[array_index+x], array[array_index+y]
     nothing
 end
 
 # the next seven functions are used for sorting 0 to 31 elements
-function tiny_sort!(array, array_index::Int, nmemb::UInt, cmp)
+function tiny_sort!(array, array_index::Int, nmemb::UInt, cmp::F) where {F}
     @inbounds if nmemb == 4
         # This is really just @inline quad_swap_four!(array, array_index, cmp)
         # However, for some weird reason, the profiler reports lots of GC and dynamic dispatch going on in either tiny_sort! or
@@ -112,7 +112,7 @@ function tiny_sort!(array, array_index::Int, nmemb::UInt, cmp)
 end
 
 # this function requires a minimum offset of 2 to work properly
-function twice_unguarded_insert!(array, array_index::Int, offset::UInt, nmemb::UInt, cmp)
+function twice_unguarded_insert!(array, array_index::Int, offset::UInt, nmemb::UInt, cmp::F) where {F}
     @inbounds for i in asInt(offset):asInt(nmemb)-1
         end_ = array_index + i
         pta = end_
@@ -139,7 +139,7 @@ function twice_unguarded_insert!(array, array_index::Int, offset::UInt, nmemb::U
     end
 end
 
-function quad_swap_four!(array, array_index::Int, cmp)
+function quad_swap_four!(array, array_index::Int, cmp::F) where {F}
     @inbounds begin
         swap_branchless!(array, array_index, cmp)
         swap_branchless!(array, array_index +2, cmp)
@@ -160,7 +160,7 @@ function quad_swap_four!(array, array_index::Int, cmp)
     end
 end
 
-function parity_swap_eight!(array, array_index::Int, swap, swap_index::Int, cmp)
+function parity_swap_eight!(array, array_index::Int, swap, swap_index::Int, cmp::F) where {F}
     @inbounds begin
         swap_branchless!(array, array_index, cmp)
         swap_branchless!(array, array_index +2, cmp)
@@ -177,7 +177,7 @@ function parity_swap_eight!(array, array_index::Int, swap, swap_index::Int, cmp)
 end
 
 # left must be equal or one smaller than right
-function parity_merge!(dest, dest_index::Int, from, from_index::Int, left::UInt, right::UInt, cmp)
+function parity_merge!(dest, dest_index::Int, from, from_index::Int, left::UInt, right::UInt, cmp::F) where {F}
     @inbounds begin
         ptl = from_index
         ptr = from_index + asInt(left)
@@ -196,7 +196,7 @@ function parity_merge!(dest, dest_index::Int, from, from_index::Int, left::UInt,
     end
 end
 
-function parity_swap_sixteen!(array, array_index::Int, swap, swap_index::Int, cmp)
+function parity_swap_sixteen!(array, array_index::Int, swap, swap_index::Int, cmp::F) where {F}
     @inbounds begin
         quad_swap_four!(array, array_index, cmp)
         quad_swap_four!(array, array_index +4, cmp)
@@ -211,7 +211,7 @@ function parity_swap_sixteen!(array, array_index::Int, swap, swap_index::Int, cm
     end
 end
 
-function tail_swap!(array, array_index::Int, swap, swap_index::Int, nmemb::UInt, cmp)
+function tail_swap!(array, array_index::Int, swap, swap_index::Int, nmemb::UInt, cmp::F) where {F}
     @inbounds begin
         if nmemb < 5
             tiny_sort!(array, array_index, nmemb, cmp)
@@ -282,13 +282,13 @@ function quad_reversal!(array, pta::Int, ptz::Int)
     end
 end
 
-function quad_swap_merge!(array, array_index::Int, swap, swap_index::Int, cmp)
+function quad_swap_merge!(array, array_index::Int, swap, swap_index::Int, cmp::F) where {F}
     parity_merge_two!(array, array_index, swap, swap_index, cmp)
     parity_merge_two!(array, array_index +4, swap, swap_index +4, cmp)
     parity_merge_four!(swap, swap_index, array, array_index, cmp)
 end
 
-function quad_swap!(array, array_index::Int, nmemb::UInt, cmp)
+function quad_swap!(array, array_index::Int, nmemb::UInt, cmp::F) where {F}
     @inbounds(@with_stackvec swap 32 eltype(array) begin
         pta = array_index
         count = nmemb ÷ 8
@@ -424,7 +424,7 @@ function quad_swap!(array, array_index::Int, nmemb::UInt, cmp)
 end
 
 # quad merge support routines
-function cross_merge!(dest, dest_index::Int, from, from_index::Int, left::UInt, right::UInt, cmp)
+function cross_merge!(dest, dest_index::Int, from, from_index::Int, left::UInt, right::UInt, cmp::F) where {F}
     @inbounds begin
         ptl = from_index
         ptr = from_index + asInt(left)
@@ -498,7 +498,7 @@ end
 # swap memory: [A  B]       step 1
 # swap memory: [A  B][C  D] step 2
 # main memory: [A  B  C  D] step 3
-function quad_merge_block!(array, array_index::Int, swap, swap_index::Int, block::UInt, cmp)
+function quad_merge_block!(array, array_index::Int, swap, swap_index::Int, block::UInt, cmp::F) where {F}
     @inbounds begin
         block_x_2 = 2block
 
@@ -511,7 +511,7 @@ function quad_merge_block!(array, array_index::Int, swap, swap_index::Int, block
             cross_merge!(swap, swap_index, array, array_index, block, block, cmp)
             cross_merge!(swap, swap_index + asInt(block_x_2), array, pt2, block, block, cmp)
         elseif tmp == 1
-            copyto!(swap, swap_index, array, array_index, block_x_2)
+            _unsafe_copyto!(swap, swap_index, array, array_index, block_x_2)
             cross_merge!(swap, swap_index + asInt(block_x_2), array, pt2, block, block, cmp)
         elseif tmp == 2
             cross_merge!(swap, swap_index, array, array_index, block, block, cmp)
@@ -524,7 +524,7 @@ function quad_merge_block!(array, array_index::Int, swap, swap_index::Int, block
     end
 end
 
-function quad_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp)
+function quad_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp::F) where {F}
     pte = array_index + asInt(nmemb)
     block *= 4
     while block ≤ nmemb && block ≤ swap_size
@@ -541,7 +541,7 @@ function quad_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::
     return block ÷ 2
 end
 
-function partial_forward_merge!(array, array_index::Int, swap, swap_index::Int, nmemb::UInt, block::UInt, cmp)
+function partial_forward_merge!(array, array_index::Int, swap, swap_index::Int, nmemb::UInt, block::UInt, cmp::F) where {F}
     @inbounds begin
         nmemb == block && return
 
@@ -587,7 +587,7 @@ function partial_forward_merge!(array, array_index::Int, swap, swap_index::Int, 
 end
 
 function partial_backward_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt,
-    cmp)
+    cmp::F) where {F}
     @inbounds begin
         nmemb == block && return
 
@@ -690,7 +690,7 @@ function partial_backward_merge!(array, array_index::Int, swap, swap_index::Int,
     end
 end
 
-function tail_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp)
+function tail_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp::F) where {F}
     pte = array_index + asInt(nmemb)
     while block < nmemb && block ≤ swap_size
         pta = array_index
@@ -813,7 +813,7 @@ function trinity_rotation!(array, array_index::Int, swap, swap_index::Int, swap_
     end
 end
 
-function monobound_binary_first!(array, array_index::Int, value, top::UInt, cmp)
+function monobound_binary_first!(array, array_index::Int, value, top::UInt, cmp::F) where {F}
     @inbounds begin
         end_ = array_index + asInt(top)
         while top > 1
@@ -830,7 +830,7 @@ function monobound_binary_first!(array, array_index::Int, value, top::UInt, cmp)
     end
 end
 
-function rotate_merge_block!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, lblock::UInt, right::UInt, cmp)
+function rotate_merge_block!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, lblock::UInt, right::UInt, cmp::F) where {F}
     @inbounds begin
         cmp(array[array_index+asInt(lblock)-1], array[array_index+asInt(lblock)]) ≤ 0 && return
 
@@ -882,7 +882,7 @@ function rotate_merge_block!(array, array_index::Int, swap, swap_index::Int, swa
     end
 end
 
-function rotate_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp)
+function rotate_merge!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, block::UInt, cmp::F) where {F}
     if nmemb ≤ 2block && nmemb - block ≤ swap_size # unsigned subtraction, ensures nmemb ≥ block
         partial_backward_merge!(array, array_index, swap, swap_index, swap_size, nmemb, block, cmp)
         return
@@ -941,7 +941,7 @@ function sort!(array::AbstractVector, lo::Int, hi::Int, ::QuadSortAlg, o::Orderi
     return array
 end
 
-function quadsort_swap!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp)
+function quadsort_swap!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp::F) where {F}
     if nmemb ≤ 96
         tail_swap!(array, array_index, swap, swap_index, nmemb, cmp)
     elseif !quad_swap!(array, array_index, nmemb, cmp)
