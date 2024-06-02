@@ -22,7 +22,7 @@ function blit_analyze!(array, array_index::Int, swap, swap_index::Int, swap_size
         ptd = array_index + asInt(half1 + quad3)
 
         astreaks = bstreaks = cstreaks = dstreaks = zero(UInt)
-        abalance = bbalance = cbalance = dbalance = zero(UInt)
+        abalance::UInt = bbalance::UInt = cbalance::UInt = dbalance::UInt = zero(UInt)
 
         cnt = nmemb
         while cnt > 132
