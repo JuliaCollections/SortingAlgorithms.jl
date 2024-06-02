@@ -245,7 +245,8 @@ function blit_median_of_nine!(array, array_index::Int, swap, swap_index::Int, nm
     end
 end
 
-function blit_median_of_cbrt!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp::F) where {F}
+Base.@assume_effects :nothrow function blit_median_of_cbrt!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt,
+    nmemb::UInt, cmp::F) where {F}
     @inbounds begin
         cbrt = UInt(32) # TODO: figure out how to write this more efficiently using bsr
         while nmemb > cbrt * cbrt * cbrt && cbrt < swap_size
@@ -381,7 +382,8 @@ function blit_default_partition!(array, array_index::Int, swap, swap_index::Int,
     end
 end
 
-function blit_partition!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt, nmemb::UInt, cmp::F) where {F}
+Base.@assume_effects :nothrow function blit_partition!(array, array_index::Int, swap, swap_index::Int, swap_size::UInt,
+    nmemb::UInt, cmp::F) where {F}
     @inbounds begin
         a_size = zero(UInt)
         local max
