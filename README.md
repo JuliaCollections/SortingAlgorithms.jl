@@ -1,126 +1,90 @@
 # Sorting Algorithms
 
-  [![Build status](https://github.com/JuliaLang/SortingAlgorithms.jl/workflows/CI/badge.svg)](https://github.com/JuliaLang/SortingAlgorithms.jl/actions?query=workflow%3ACI+branch%3Amaster)
+[![Build status](https://github.com/JuliaLang/SortingAlgorithms.jl/workflows/CI/badge.svg)](https://github.com/JuliaLang/SortingAlgorithms.jl/actions?query=workflow%3ACI+branch%3Amaster)
 [![Coverage Status](https://coveralls.io/repos/JuliaLang/SortingAlgorithms.jl/badge.svg)](https://coveralls.io/r/JuliaLang/SortingAlgorithms.jl)
+[![deps](https://juliahub.com/docs/SortingAlgorithms/deps.svg)](https://juliahub.com/ui/Packages/SortingAlgorithms/6dCmw?t=2)
 
-The `SortingAlgorithms` package provides three sorting algorithms that can be used with Julia's [standard sorting API](https://docs.julialang.org/en/v1/base/sort/):
+The `SortingAlgorithms` package provides four sorting algorithms that can be used with Julia's [standard sorting API](https://docs.julialang.org/en/v1/base/sort/):
 
 - [HeapSort] – an unstable, general purpose, in-place, O(n log n) comparison sort that works by heapifying an array and repeatedly taking the maximal element from the heap.
 - [TimSort] – a stable, general purpose, hybrid, O(n log n) comparison sort that adapts to different common patterns of partially ordered input data.
-- [RadixSort] – a stable, special case, O(n) non-comparison sort that works by sorting data with fixed size, one digit at a time.
+- [CombSort] – an unstable, general purpose, in-place, O(n log n) comparison sort with O(n^2) pathological cases that can attain good efficiency through SIMD instructions and instruction level parallelism on modern hardware.
+- [PagedMergeSort] – a stable, general purpose, O(n log n) time and O(sqrt n) space comparison sort.
 
-[HeapSort]:  http://en.wikipedia.org/wiki/Heapsort
-[TimSort]:   http://en.wikipedia.org/wiki/Timsort
-[RadixSort]: http://en.wikipedia.org/wiki/Radix_sort
+[HeapSort]: https://en.wikipedia.org/wiki/Heapsort
+[TimSort]:  https://en.wikipedia.org/wiki/Timsort
+[CombSort]: https://en.wikipedia.org/wiki/Comb_sort
+[PagedMergeSort]: https://link.springer.com/chapter/10.1007/BFb0016253
 
 ## Usage
 
 ```jl
-	julia> using SortingAlgorithms
+julia> using SortingAlgorithms
 
-	julia> words = map(chomp,[readlines(open("/usr/share/dict/words"))...])
-	235886-element Array{ASCIIString,1}:
-	 "A"
-	 "a"
-	 "aa"
-	 "aal"
-	 "aalii"
-	 ⋮
-	 "zythem"
-	 "Zythia"
-	 "zythum"
-	 "Zyzomys"
-	 "Zyzzogeton"
+julia> words = map(chomp,[readlines(open("/usr/share/dict/words"))...])
+235886-element Array{ASCIIString,1}:
+ "A"
+ "a"
+ "aa"
+ ⋮
+ "zythum"
+ "Zyzomys"
+ "Zyzzogeton"
 
-	julia> sort!(words, alg=TimSort)
-	235886-element Array{ASCIIString,1}:
-	 "A"
-	 "Aani"
-	 "Aaron"
-	 "Aaronic"
-	 "Aaronical"
-	 ⋮
-	 "zymotize"
-	 "zymotoxic"
-	 "zymurgy"
-	 "zythem"
-	 "zythum"
+julia> sort!(words, alg=TimSort)
+235886-element Array{ASCIIString,1}:
+ "A"
+ "Aani"
+ "Aaron"
+ ⋮
+ "zymurgy"
+ "zythem"
+ "zythum"
 
-	julia> sort!(words, alg=TimSort, by=length)
-	235886-element Array{ASCIIString,1}:
-	 "A"
-	 "B"
-	 "C"
-	 "D"
-	 "E"
-	 ⋮
-	 "formaldehydesulphoxylate"
-	 "pathologicopsychological"
-	 "scientificophilosophical"
-	 "tetraiodophenolphthalein"
-	 "thyroparathyroidectomize"
+julia> sort!(words, alg=TimSort, by=length)
+235886-element Array{ASCIIString,1}:
+ "A"
+ "B"
+ "C"
+ ⋮
+ "scientificophilosophical"
+ "tetraiodophenolphthalein"
+ "thyroparathyroidectomize"
 
-	julia> sort!(words, alg=HeapSort)
-	235886-element Array{ASCIIString,1}:
-	 "A"
-	 "Aani"
-	 "Aaron"
-	 "Aaronic"
-	 "Aaronical"
-	 ⋮
-	 "zymotize"
-	 "zymotoxic"
-	 "zymurgy"
-	 "zythem"
-	 "zythum"
+julia> sort!(words, alg=HeapSort)
+235886-element Array{ASCIIString,1}:
+ "A"
+ "Aani"
+ "Aaron"
+ ⋮
+ "zymurgy"
+ "zythem"
+ "zythum"
 
-	julia> sort!(words, alg=HeapSort, by=length)
-	235886-element Array{ASCIIString,1}:
-	 "L"
-	 "p"
-	 "U"
-	 "I"
-	 "q"
-	 ⋮
-	 "pathologicopsychological"
-	 "formaldehydesulphoxylate"
-	 "scientificophilosophical"
-	 "tetraiodophenolphthalein"
-	 "thyroparathyroidectomize"
+julia> sort!(words, alg=HeapSort, by=length)
+235886-element Array{ASCIIString,1}:
+ "L"
+ "p"
+ "U"
+ ⋮
+ "scientificophilosophical"
+ "tetraiodophenolphthalein"
+ "thyroparathyroidectomize"
 
-	julia> sort!(words, alg=RadixSort)
-	ERROR: Radix sort only sorts bits types (got ASCIIString)
-	 in error at error.jl:21
-	 in sort! at /Users/stefan/.julia/SortingAlgorithms/src/SortingAlgorithms.jl:54
-	 in sort! at sort.jl:328
-	 in sort! at sort.jl:329
-
-	julia> floats = randn(1000)
-	1000-element Array{Float64,1}:
-	  1.729
-	  0.907196
-	  0.461481
-	 -0.204763
-	 -0.16022
-	  ⋮
-	  0.700683
-	 -0.236204
-	 -2.15634
-	 -0.316188
-	 -0.171478
-
-	julia> sort!(floats, alg=RadixSort)
-	1000-element Array{Float64,1}:
-	 -2.86255
-	 -2.72041
-	 -2.58234
-	 -2.57259
-	 -2.53046
-	  ⋮
-	  3.08307
-	  3.12902
-	  3.15075
-	  3.20058
-	  3.23942
+julia> sort!(randn(1000), alg=CombSort)
+1000-element Array{Float64,1}:
+ -2.86255
+ -2.72041
+ -2.58234
+  ⋮
+  3.15075
+  3.20058
+  3.23942
 ```
 
+## Other packages that provide sorting algorithms
+
+While SortingAlgorithms.jl is the most widely used sorting package in the Julia ecosystem, other packages are available:
+- https://github.com/xiaodaigh/SortingLab.jl
+- https://github.com/JeffreySarnoff/SortingNetworks.jl
+- https://github.com/nlw0/ChipSort.jl
