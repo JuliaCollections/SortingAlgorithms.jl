@@ -6,17 +6,6 @@ on:
       - main
     tags: '*'
 jobs:
-  finalize:
-    timeout-minutes: 10
-    needs: [test]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          echo test: ${{ needs.test.result }}
-      - run: exit 1
-        if: |
-          (needs.test.result != 'success')
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
@@ -24,10 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - 'min'
-          - 'lts'
+          - '1.0'
           - '1'
-          - 'pre'
+          - 'nightly'
         os:
           - ubuntu-latest
           - macOS-latest
