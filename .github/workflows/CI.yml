@@ -6,7 +6,6 @@ on:
       - main
     tags: '*'
 
-
 concurrency:
   # group by workflow and ref; the last slightly strange component ensures that for pull
   # requests, we limit to 1 concurrent job, but for the default repository branch we don't
