@@ -908,7 +908,7 @@ midpoint(lo::Integer, hi::Integer) = lo + ((hi - lo) >>> 0x01)
 
 function pagedmergesort!(v::AbstractVector{T}, lo::Integer, hi::Integer, o::Ordering, scratch::AbstractVector{T}, pageLocations) where {T}
     len = hi + 1 - lo
-    if len <= Base.SMALL_THRESHOLD
+    if len <= Base.Sort.SMALL_THRESHOLD
         return Base.Sort.sort!(v, lo, hi, Base.Sort.InsertionSortAlg(), o)
     end
     m = midpoint(lo, hi - 1) # hi-1: ensure midpoint is rounded down. OK, because lo < hi is satisfied here
