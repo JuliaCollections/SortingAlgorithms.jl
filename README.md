@@ -1,4 +1,4 @@
-# Sorting Algorithms
+# Sorting Algorithms 
 
 [![Build status](https://github.com/JuliaLang/SortingAlgorithms.jl/workflows/CI/badge.svg)](https://github.com/JuliaLang/SortingAlgorithms.jl/actions?query=workflow%3ACI+branch%3Amain)
 [![Coverage Status](https://codecov.io/github/JuliaCollections/SortingAlgorithms.jl/coverage.svg?branch=main)](https://codecov.io/github/JuliaCollections/SortingAlgorithms.jl?branch=main)
